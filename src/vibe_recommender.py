@@ -14,6 +14,7 @@ VIBE_COLS = [
     "acousticness",
     "instrumentalness",
     "speechiness",
+    "tempo",
 ]
 
 # Optional: fallback weights if you want some vibes to matter more
@@ -24,6 +25,7 @@ DEFAULT_WEIGHTS = {
     "acousticness": 1.0,
     "instrumentalness": 1.0,
     "speechiness": 0.8,
+    "tempo": 1.0,
 }
 
 # -----------------------
@@ -377,4 +379,47 @@ class VibeRecommender:
             diversity_threshold=diversity_threshold,
         )
         recs["persona_used"] = persona_name
+        return recs
+    
+    def features_to_target_vec(self, features: dict) -> np.ndarray:
+        """
+        features: dict with keys in self.vibe_cols, values in the SAME scale
+        as your dataset (for Kaggle: 0–1 for most, tempo in BPM).
+        → returns standardized vector in vibe space.
+        """
+        vals = []
+        for col in self.vibe_cols:
+            if col not in features:
+                raise ValueError(f"Missing feature '{col}' in input features")
+            vals.append(float(features[col]))
+
+        raw_arr = np.array(vals).reshape(1, -1)
+        target_scaled = self.scaler.transform(raw_arr)[0]
+        return target_scaled
+
+    def recommend_from_features(
+        self,
+        features: dict,
+        top_k: int = 20,
+        lambda_vibe: float = 0.7,
+        min_popularity: int = None,
+        hide_explicit: bool = False,
+        allowed_genres=None,
+        diversity: bool = True,
+        diversity_threshold: float = 0.9,
+    ) -> pd.DataFrame:
+        """
+        Mode 2A core: recommend given raw audio features (e.g. from Spotify API).
+        """
+        target_vec = self.features_to_target_vec(features)
+        recs = self._score_tracks(
+            target_vec,
+            top_k=top_k,
+            lambda_vibe=lambda_vibe,
+            min_popularity=min_popularity,
+            hide_explicit=hide_explicit,
+            allowed_genres=allowed_genres,
+            diversity=diversity,
+            diversity_threshold=diversity_threshold,
+        )
         return recs
