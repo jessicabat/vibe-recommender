@@ -2,37 +2,12 @@
 
 """
 Mode 2B — Vibe Roulette (Time-of-Day Aware + Storytelling + Spotify Embed)
-
-User flow (1 click):
-    - User presses "🎲 Vibe Roulette"
-    - We:
-        1. Inspect current time and weekday/weekend.
-        2. Map that to a (day_type, time_bucket) context.
-        3. Randomly choose a persona for that context.
-        4. Use the persona's sliders with your Mode 1 engine to get recommendations.
-        5. Autoplay the #1 track, queue the rest.
-        6. Return a metadata dict describing what happened (persona, time, etc).
-
-Storytelling layers:
-    - Persona intro templates (randomized)
-    - Mood adjectives from slider config
-    - Tiny "vibe card" (emoji + tags)
-    - Continuity hook: reference last spin if available
-    - Light explanation of why the top track fits the chosen persona
-    - Spotify URL + embedded player (in Jupyter, if available)
-
-The engine is expected to be something like SliderVibeRecommender with:
-    - df: pd.DataFrame of tracks
-    - vibe_cols: list of feature names
-    - X: np.ndarray of standardized features (N x D)
-    - _sliders_to_target_vec(sliders): maps 0–100 sliders into engine's feature space
-    - recommend_by_sliders(sliders, top_k, lambda_vibe, ...)
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Any
 import random
 from datetime import datetime
 
@@ -53,20 +28,16 @@ class TimeOfDayPersona:
 # 1. Define personas
 # ---------------------------------------------------------------------
 
-# -----------------------------
-# Dataset-calibrated personas
-# -----------------------------
-
 SOFT_SUNRISE = TimeOfDayPersona(
     name="Soft Sunrise Focus",
     sliders={
-        "danceability":     45,  # a bit groovy, not dance-heavy
-        "energy":           40,  # soft-mid energy
-        "valence":          60,  # positive but not hyper
-        "tempo":            40,  # ~25th percentile tempo (~100 BPM)
-        "acousticness":     70,  # fairly acoustic
-        "instrumentalness": 10,  # mostly vocals, not full-on instrumental
-        "speechiness":      10,  # normal pop-level speechiness
+        "danceability":     45,
+        "energy":           40,
+        "valence":          60,
+        "tempo":            40,
+        "acousticness":     70,
+        "instrumentalness": 10,
+        "speechiness":      10,
     },
     tagline="gentle, warm, slightly acoustic morning focus vibes",
     emoji="🌅☕️",
@@ -76,13 +47,13 @@ SOFT_SUNRISE = TimeOfDayPersona(
 FLOW_STATE = TimeOfDayPersona(
     name="Flow State Focus",
     sliders={
-        "danceability":     50,  # moderate groove
-        "energy":           55,  # slightly above median energy
-        "valence":          45,  # emotionally neutral / balanced
-        "tempo":            50,  # median tempo (~120 BPM)
-        "acousticness":     55,  # somewhat acoustic, not fully unplugged
-        "instrumentalness": 30,  # more instrumental to reduce lyric distraction
-        "speechiness":       5,  # very low speechiness
+        "danceability":     50,
+        "energy":           55,
+        "valence":          45,
+        "tempo":            50,
+        "acousticness":     55,
+        "instrumentalness": 30,
+        "speechiness":       5,
     },
     tagline="steady, low-distraction beats for deep work",
     emoji="📚💻",
@@ -92,13 +63,13 @@ FLOW_STATE = TimeOfDayPersona(
 UNWIND_AFTER_HOURS = TimeOfDayPersona(
     name="Unwind After Hours",
     sliders={
-        "danceability":     55,  # gentle groove
-        "energy":           50,  # mid energy
-        "valence":          55,  # slightly positive
-        "tempo":            45,  # a bit slower than median
-        "acousticness":     60,  # warm acoustic feel
-        "instrumentalness": 35,  # mix of instrumental and vocal
-        "speechiness":      10,  # not talk-heavy
+        "danceability":     55,
+        "energy":           50,
+        "valence":          55,
+        "tempo":            45,
+        "acousticness":     60,
+        "instrumentalness": 35,
+        "speechiness":      10,
     },
     tagline="warm, laid-back tracks for evening decompression",
     emoji="🛋️🌙",
@@ -108,13 +79,13 @@ UNWIND_AFTER_HOURS = TimeOfDayPersona(
 MIDNIGHT_LOFI = TimeOfDayPersona(
     name="Midnight Lo-Fi Drift",
     sliders={
-        "danceability":     40,  # more sway than dance
-        "energy":           35,  # low-ish energy
-        "valence":          35,  # slightly on the moody side
-        "tempo":            45,  # chill tempo, not too slow to break flow
-        "acousticness":     65,  # cozy / warm timbre
-        "instrumentalness": 50,  # strong instrumental presence
-        "speechiness":       5,  # minimal vocal chatter
+        "danceability":     40,
+        "energy":           35,
+        "valence":          35,
+        "tempo":            45,
+        "acousticness":     65,
+        "instrumentalness": 50,
+        "speechiness":       5,
     },
     tagline="hazy, lo-fi textures for late-night scrolling",
     emoji="🌌📼",
@@ -124,13 +95,13 @@ MIDNIGHT_LOFI = TimeOfDayPersona(
 LAZY_BRUNCH = TimeOfDayPersona(
     name="Lazy Brunch Breeze",
     sliders={
-        "danceability":     55,  # light movement
-        "energy":           50,  # comfortable mid energy
-        "valence":          65,  # clearly positive
-        "tempo":            50,  # easy medium tempo
-        "acousticness":     55,  # organic, brunchy feel
-        "instrumentalness": 15,  # mostly songs with vocals
-        "speechiness":      10,  # casual pop speechiness
+        "danceability":     55,
+        "energy":           50,
+        "valence":          65,
+        "tempo":            50,
+        "acousticness":     55,
+        "instrumentalness": 15,
+        "speechiness":      10,
     },
     tagline="weekend late morning, sunny, easy-going brunch grooves",
     emoji="🥞🌤️",
@@ -140,13 +111,13 @@ LAZY_BRUNCH = TimeOfDayPersona(
 GOLDEN_HOUR = TimeOfDayPersona(
     name="Golden Hour Groove",
     sliders={
-        "danceability":     70,  # clearly danceable
-        "energy":           70,  # upbeat but not aggressive
-        "valence":          75,  # high positivity
-        "tempo":            60,  # slightly above median tempo (~140+ BPM)
-        "acousticness":     35,  # more produced / pop-leaning
-        "instrumentalness": 10,  # vocal-driven
-        "speechiness":      15,  # a bit of talk/rap ok
+        "danceability":     70,
+        "energy":           70,
+        "valence":          75,
+        "tempo":            60,
+        "acousticness":     35,
+        "instrumentalness": 10,
+        "speechiness":      15,
     },
     tagline="feel-good pop and indie for golden hour walks",
     emoji="🌅✨",
@@ -156,13 +127,13 @@ GOLDEN_HOUR = TimeOfDayPersona(
 NIGHT_OUT = TimeOfDayPersona(
     name="Night Out Pre-Game",
     sliders={
-        "danceability":     80,  # very danceable (~90th percentile)
-        "energy":           85,  # high energy (~75–95th)
-        "valence":          70,  # fun, upbeat
-        "tempo":            65,  # fast (~150–160 BPM region)
-        "acousticness":     10,  # very produced / electronic
-        "instrumentalness":  5,  # mostly vocal anthems
-        "speechiness":      20,  # rap / party hooks allowed
+        "danceability":     80,
+        "energy":           85,
+        "valence":          70,
+        "tempo":            65,
+        "acousticness":     10,
+        "instrumentalness":  5,
+        "speechiness":      20,
     },
     tagline="high-energy bangers to get you out the door",
     emoji="🥂💃",
@@ -172,13 +143,13 @@ NIGHT_OUT = TimeOfDayPersona(
 NEON_CITY = TimeOfDayPersona(
     name="Neon City Ride",
     sliders={
-        "danceability":     75,  # smooth groove
-        "energy":           70,  # energetic but not chaotic
-        "valence":          55,  # emotionally mixed / bittersweet
-        "tempo":            60,  # driving tempo
-        "acousticness":     20,  # mostly electronic / polished
-        "instrumentalness": 25,  # some instrumental textures
-        "speechiness":      10,  # not too talky
+        "danceability":     75,
+        "energy":           70,
+        "valence":          55,
+        "tempo":            60,
+        "acousticness":     20,
+        "instrumentalness": 25,
+        "speechiness":      10,
     },
     tagline="late-night drive: pulsing, slightly moody, cinematic",
     emoji="🌃🚗",
@@ -186,24 +157,22 @@ NEON_CITY = TimeOfDayPersona(
 )
 
 
-
 # Map (day_type, time_bucket) to possible personas
 # day_type: "weekday" or "weekend"
-
+# time_bucket: "morning", "afternoon", "evening", "late_night"
 CONTEXT_PERSONAS: Dict[Tuple[str, str], List[TimeOfDayPersona]] = {
     # Weekday
-    ("weekday", "morning"):   [SOFT_SUNRISE],
-    ("weekday", "afternoon"): [FLOW_STATE],
-    ("weekday", "evening"):   [UNWIND_AFTER_HOURS],
+    ("weekday", "morning"):    [SOFT_SUNRISE],
+    ("weekday", "afternoon"):  [FLOW_STATE],
+    ("weekday", "evening"):    [UNWIND_AFTER_HOURS],
     ("weekday", "late_night"): [MIDNIGHT_LOFI],
 
     # Weekend
-    ("weekend", "morning"):   [LAZY_BRUNCH],
-    ("weekend", "afternoon"): [GOLDEN_HOUR],
-    ("weekend", "evening"):   [NIGHT_OUT],
-    ("weekend", "late_night"): [NEON_CITY,MIDNIGHT_LOFI],
+    ("weekend", "morning"):    [LAZY_BRUNCH],
+    ("weekend", "afternoon"):  [GOLDEN_HOUR],
+    ("weekend", "evening"):    [NIGHT_OUT],
+    ("weekend", "late_night"): [NEON_CITY, MIDNIGHT_LOFI],
 }
-
 
 
 # ---------------------------------------------------------------------
@@ -242,34 +211,16 @@ def _get_time_bucket(dt: datetime) -> str:
 class Mode2BVibeRoulette:
     """
     Mode 2B: 1-click "Vibe Roulette" based on time-of-day and weekday/weekend.
-
-    Usage (in a notebook):
-
-        from mode1_sliders import SliderVibeRecommender
-        from mode2b_vibe_roulette import Mode2BVibeRoulette
-
-        df = pd.read_csv("spotify_tracks.csv")
-        engine = SliderVibeRecommender(df_tracks=df)
-        roulette = Mode2BVibeRoulette(engine)
-
-        now_playing, up_next, meta = roulette.spin(top_k=10, lambda_vibe=0.8)
-        roulette.print_spin_result(now_playing, up_next, meta)
     """
 
     def __init__(self, engine, rng_seed: int = 42):
         """
-        engine: an instance of your slider-based recommender, e.g. SliderVibeRecommender.
-        It must implement:
-            - df (DataFrame)
-            - vibe_cols (list)
-            - X (np.ndarray of standardized features)
-            - _sliders_to_target_vec(sliders)  # used for light explanation
-            - recommend_by_sliders(sliders, top_k, lambda_vibe, ...)
+        engine: SliderVibeRecommender-like instance.
         """
         self.engine = engine
         self.df = engine.df
         self.rng = np.random.default_rng(rng_seed)
-        self._last_meta: Optional[Dict] = None  # for continuity hooks
+        self._last_meta: Optional[Dict[str, Any]] = None
 
     # ---------------- internal helpers ----------------
 
@@ -281,15 +232,14 @@ class Mode2BVibeRoulette:
         """Randomly choose a persona for the given (day_type, time_bucket)."""
         key = (day_type, time_bucket)
         if key not in CONTEXT_PERSONAS:
-            # Fallback if missing (shouldn't happen)
             key = ("weekday", "afternoon")
         candidates = CONTEXT_PERSONAS[key]
         return random.choice(candidates)
 
     def _describe_sliders_short(self, sliders: Dict[str, float]) -> str:
         """
-        Turn sliders into a small mood description using adjectives like:
-        - "soft & cozy", "glowy & upbeat", "dark and wavy", "sparkly & high-tempo"
+        Turn sliders into a small mood description, e.g.:
+        - "soft & low-key · more chill than dancey · slower, relaxed tempo"
         """
         phrases = []
 
@@ -300,7 +250,6 @@ class Mode2BVibeRoulette:
         acousticness = sliders.get("acousticness", 50)
         instrumentalness = sliders.get("instrumentalness", 50)
 
-        # Energy-driven phrases
         if energy >= 80 and tempo >= 70:
             phrases.append("sparkly & high-tempo")
         elif energy >= 70:
@@ -308,39 +257,33 @@ class Mode2BVibeRoulette:
         elif energy <= 35:
             phrases.append("soft & low-key")
 
-        # Danceability
         if dance >= 75:
             phrases.append("very danceable")
         elif dance <= 35:
             phrases.append("more chill than dancey")
 
-        # Valence / mood
         if valence >= 70:
             phrases.append("glowy & upbeat")
         elif valence <= 35:
             phrases.append("moody / introspective")
 
-        # Tempo
         if tempo >= 80:
             phrases.append("fast tempo")
         elif tempo <= 40:
             phrases.append("slower, relaxed tempo")
 
-        # Acoustic / electronic
         if acousticness >= 70:
             phrases.append("soft & cozy acoustic")
         elif acousticness <= 30:
             phrases.append("more electronic / synthetic")
 
-        # Instrumental
         if instrumentalness >= 70:
             phrases.append("mostly instrumental")
 
         if not phrases:
             return "balanced vibe"
 
-        # Deduplicate and keep just a few highlights
-        uniq_phrases = []
+        uniq_phrases: List[str] = []
         for p in phrases:
             if p not in uniq_phrases:
                 uniq_phrases.append(p)
@@ -355,19 +298,14 @@ class Mode2BVibeRoulette:
     ) -> str:
         """
         Light explanation: which vibe dimensions are closest between
-        the persona sliders and the recommended track in the engine's
-        standardized feature space?
+        the persona sliders and the recommended track?
         """
-        # Need engine's internal mapping and standardized matrix
         if not hasattr(self.engine, "_sliders_to_target_vec"):
             return ""
 
         try:
-            # persona target in standardized space
             target_vec = self.engine._sliders_to_target_vec(persona.sliders)
 
-            # locate track vector in engine.X
-            # now_playing.name should be the df index
             if now_playing.name not in self.df.index:
                 return ""
             pos = self.df.index.get_loc(now_playing.name)
@@ -375,7 +313,7 @@ class Mode2BVibeRoulette:
 
             diff = np.abs(target_vec - track_vec)
             feature_diffs = list(zip(self.engine.vibe_cols, diff))
-            feature_diffs.sort(key=lambda x: x[1])  # smallest diff = best match
+            feature_diffs.sort(key=lambda x: x[1])
 
             top_features = [name for name, _ in feature_diffs[:top_n_features]]
 
@@ -390,23 +328,19 @@ class Mode2BVibeRoulette:
             }
 
             pretty_features = [friendly_names.get(f, f) for f in top_features]
-
             if not pretty_features:
                 return ""
 
             return "This track lines up strongly on " + ", ".join(pretty_features) + "."
         except Exception:
-            # Fail silently; explanation is optional sugar
             return ""
 
     def _build_persona_intro(
         self,
-        meta: Dict,
+        meta: Dict[str, Any],
         now_playing: pd.Series,
     ) -> str:
-        """
-        Randomized persona intro line using templates and context.
-        """
+        """Persona intro line using templates and context."""
         persona_name = meta.get("persona_name", "Unknown Vibe")
         tagline = meta.get("persona_tagline", "")
         day_type = meta.get("day_type", "weekday")
@@ -445,46 +379,33 @@ class Mode2BVibeRoulette:
         if vibe_summary:
             intro += f"\nVibe: {vibe_summary}."
         return intro
-    
+
     def _choose_now_playing_with_exploration(
         self,
         recs: pd.DataFrame,
         explore_k: int = 30,
-        temperature: float = 0.2,
-    ):
+        temperature: float = 0.7,
+    ) -> Tuple[pd.Series, pd.DataFrame]:
         """
         Given a sorted recs dataframe (best first),
         pick a 'now playing' track with a bit of randomness.
-
-        - explore_k: how many top tracks to consider for the spin.
-        - temperature: controls how peaky the probabilities are.
-                       lower = more greedy (closer to always top-1),
-                       higher = more random.
         """
         if recs.empty:
             raise RuntimeError("No recommendations available for this persona/context.")
 
-        # Work on a top slice only
         k = min(explore_k, len(recs))
         top = recs.iloc[:k].copy()
 
         if "vibe_score" not in top.columns:
-            # Fallback: if somehow no vibe_score, just pick uniformly
             probs = np.ones(k) / k
         else:
             scores = top["vibe_score"].values.astype(float)
-
-            # Temperature-softmax over scores
-            # (scores are in ~[0, 1], so small temperature still works)
             scaled = scores / max(temperature, 1e-6)
             exps = np.exp(scaled - np.max(scaled))
             probs = exps / (exps.sum() + 1e-8)
 
-        # Randomly choose one index from the top slice
-        choice_idx = np.random.choice(k, p=probs)
+        choice_idx = self.rng.choice(k, p=probs)
         now_playing = top.iloc[choice_idx]
-
-        # Build queue: everything else in 'top' except the chosen row
         up_next = top.drop(index=now_playing.name)
 
         return now_playing, up_next
@@ -504,93 +425,20 @@ class Mode2BVibeRoulette:
     ) -> Tuple[pd.Series, pd.DataFrame, Dict[str, Any]]:
         """
         Perform one Vibe Roulette spin.
-
-        Returns
-        -------
-        now_playing : pd.Series
-            First recommended track (autoplay candidate).
-        up_next : pd.DataFrame
-            Remaining queue.
-        meta : dict
-            Metadata including:
-                - timestamp
-                - day_type
-                - time_bucket
-                - persona_name
-                - persona_tagline
-                - persona_sliders
-                - emoji
-                - tags
-                - vibe_summary
-                - previous_meta (for continuity hooks)
         """
-        # if top_k < 1:
-        #     raise ValueError("top_k must be >= 1")
+        if top_k < 1:
+            raise ValueError("top_k must be >= 1")
 
-        # dt = when or datetime.now()
-        # day_type = _get_day_type(dt)
-        # time_bucket = _get_time_bucket(dt)
+        dt = datetime.now()
+        day_type = _get_day_type(dt)
+        time_bucket = _get_time_bucket(dt)
 
-        # persona = self._choose_persona_for_context(day_type, time_bucket)
+        persona = self._choose_persona_for_context(day_type, time_bucket)
 
-        # # recs = self.engine.recommend_by_sliders(
-        # #     sliders=persona.sliders,
-        # #     top_k=top_k,
-        # #     lambda_vibe=lambda_vibe,
-        # #     min_popularity=min_popularity,
-        # #     hide_explicit=hide_explicit,
-        # #     allowed_genres=allowed_genres,
-        # #     diversity=diversity,
-        # #     diversity_threshold=diversity_threshold,
-        # # )
-        # recs = self.engine.recommend_by_sliders(
-        #     sliders=persona.sliders,
-        #     top_k=100,              # ask for a decent pool
-        #     lambda_vibe=lambda_vibe,
-        #     hide_explicit=hide_explicit,
-        #     min_popularity=min_popularity,
-        # )
-
-        # if recs.empty:
-        #     raise RuntimeError("Vibe Roulette produced no recommendations. Check filters / data.")
-
-        # # now_playing = recs.iloc[0]
-        # # up_next = recs.iloc[1:].copy()
-        # now_playing, up_next = self._choose_now_playing_with_exploration(
-        #     recs,
-        #     explore_k=30,           # consider top 30 for randomness
-        #     temperature=0.25,       # tweak this if it feels too random / too greedy
-        # )
-
-        # vibe_summary = self._describe_sliders_short(persona.sliders)
-
-        # meta = {
-        #     "timestamp": dt,
-        #     "timestamp_iso": dt.isoformat(timespec="seconds"),
-        #     "day_type": day_type,
-        #     "time_bucket": time_bucket,
-        #     "persona_name": persona.name,
-        #     "persona_tagline": persona.tagline,
-        #     "persona_sliders": persona.sliders,
-        #     "persona_emoji": persona.emoji,
-        #     "persona_tags": persona.tags,
-        #     "vibe_summary": vibe_summary,
-        #     "previous_meta": self._last_meta,
-        # }
-
-        # # update continuity state
-        # self._last_meta = meta
-
-        # return now_playing, up_next, meta
-        now = datetime.datetime.now()
-        weekday_bucket, time_bucket = self._get_context_buckets(now)
-        persona_name, sliders = self._pick_persona(weekday_bucket, time_bucket)
-
-        # Candidate pool size (we'll sample from the top `explore_k`)
         candidate_k = max(top_k, explore_k)
 
-        base_recs = self.engine.recommend_by_sliders(
-            sliders=sliders,
+        recs = self.engine.recommend_by_sliders(
+            sliders=persona.sliders,
             top_k=candidate_k,
             lambda_vibe=lambda_vibe,
             hide_explicit=hide_explicit,
@@ -599,61 +447,52 @@ class Mode2BVibeRoulette:
             diversity_threshold=diversity_threshold,
         )
 
-        if base_recs.empty:
-            raise RuntimeError("No recommendations for this persona/context.")
+        if recs.empty:
+            raise RuntimeError("Vibe Roulette produced no recommendations. Check filters / data.")
 
-        # Take top explore_k candidates
-        pool = base_recs.iloc[: min(explore_k, len(base_recs))].copy()
-        n = len(pool)
+        now_playing, up_next = self._choose_now_playing_with_exploration(
+            recs, explore_k=explore_k, temperature=temperature
+        )
 
-        # Exploration: higher `temperature` ⇒ flatter distribution
-        ranks = np.arange(n)          # 0 = best
-        inv_ranks = n - ranks         # 1..n
-        weights = inv_ranks.astype(float) ** (1.0 / max(temperature, 1e-3))
-        probs = weights / weights.sum()
+        up_next = up_next.iloc[: max(0, top_k - 1)].copy()
 
-        idx_in_pool = self.rng.choice(n, p=probs)
-        now_playing = pool.iloc[idx_in_pool]
+        vibe_summary = self._describe_sliders_short(persona.sliders)
 
-        # Queue = rest of pool, best-ranked first, excluding chosen now_playing
-        queue_df = pool.drop(pool.index[idx_in_pool], axis=0)
-        up_next = queue_df.iloc[: max(0, top_k - 1)].copy()
-
-        meta = {
-            "persona_name": persona_name,
-            "sliders_used": sliders,
-            "weekday_bucket": weekday_bucket,
-            "time_bucket": time_bucket,
-            "timestamp": now.isoformat(),
+        meta: Dict[str, Any] = {
+            "timestamp": dt,
+            "timestamp_iso": dt.isoformat(timespec="seconds"),
+            "day_type": day_type,
+            "time_bucket": time_bucket,  # e.g. 'evening', 'late_night'
+            "persona_name": persona.name,
+            "persona_tagline": persona.tagline,
+            "persona_sliders": persona.sliders,
+            "persona_emoji": persona.emoji,
+            "persona_tags": persona.tags,
+            "vibe_summary": vibe_summary,
+            "previous_meta": self._last_meta,
         }
+
+        self._last_meta = meta
         return now_playing, up_next, meta
 
     def print_spin_result(
         self,
         now_playing: pd.Series,
         up_next: pd.DataFrame,
-        meta: Dict,
+        meta: Dict[str, Any],
         show_story: bool = True,
         show_explanation: bool = True,
     ) -> None:
         """
         Pretty-print the Vibe Roulette result in a notebook.
-
-        - Story line about time & persona
-        - Tiny "vibe card"
-        - Continuity hook referencing previous spin
-        - "Now playing" with Spotify URL + embedded player
-        - "Up Next" table
         """
         try:
-            from IPython.display import display, IFrame, HTML  # type: ignore
+            from IPython.display import display, IFrame  # type: ignore
             have_ipython = True
         except ImportError:
-            # Fallback: still works in plain console, just no embed/HTML
             have_ipython = False
             display = None  # type: ignore
             IFrame = None   # type: ignore
-            HTML = None     # type: ignore
 
         track_name = now_playing.get("track_name", "Unknown track")
         artist = now_playing.get("artists", "Unknown artist")
@@ -681,7 +520,6 @@ class Mode2BVibeRoulette:
             print(f"Context: {day_type.capitalize()} {bucket_label}")
             print()
 
-            # Tiny vibe card
             tag_str = " · ".join(persona_tags) if persona_tags else vibe_summary
             print(f"{persona_emoji}  Persona: **{persona_name}**")
             if tagline:
@@ -690,7 +528,6 @@ class Mode2BVibeRoulette:
                 print(f"   {tag_str}")
             print()
 
-            # Continuity hook
             if previous_meta is not None:
                 prev_name = previous_meta.get("persona_name", "a different vibe")
                 prev_bucket = previous_meta.get("time_bucket", "").replace("_", " ")
@@ -700,24 +537,20 @@ class Mode2BVibeRoulette:
                 )
                 print()
 
-            # Persona intro line involving actual track
             intro = self._build_persona_intro(meta, now_playing)
             print(intro)
             print()
 
-        # Now playing
         print(f"🎧 Now playing: {track_name} — {artist}")
         if isinstance(track_id, str) and track_id:
             spotify_url = f"https://open.spotify.com/track/{track_id}"
             print(f"🔗 Open in Spotify: {spotify_url}")
 
-            # Embedded player (Jupyter)
             if have_ipython and IFrame is not None:
                 embed_url = f"https://open.spotify.com/embed/track/{track_id}"
                 print("\n▶️ Embedded player:")
                 display(IFrame(src=embed_url, width=320, height=80))
 
-        # Light explanation of why this track fits the persona
         if show_explanation:
             expl = self._explain_match(
                 persona=TimeOfDayPersona(
@@ -734,7 +567,6 @@ class Mode2BVibeRoulette:
                 print("\nℹ️ Why this track?")
                 print(expl)
 
-        # Queue
         if not up_next.empty:
             print("\n🎵 Up Next:")
             if have_ipython and display is not None:
@@ -746,7 +578,6 @@ class Mode2BVibeRoulette:
                     cols = up_next.columns.tolist()
                 display(up_next[cols])
             else:
-                # Plain text fallback
                 print(up_next[["track_name", "artists"]].head())
         else:
             print("\n(No additional tracks in queue.)")
