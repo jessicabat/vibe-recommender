@@ -213,71 +213,45 @@ def page_mode2a_seed_from_song(mode2a: Mode2ASeedFromSong):
         "you pick one, and I’ll build a vibe-matching playlist from it."
     )
 
+    # Keep search results in session so they survive reruns
+    if "mode2a_results" not in st.session_state:
+        st.session_state["mode2a_results"] = None
+
     query = st.text_input("Type a song or artist name", value="Feel Good Inc")
 
     if st.button("🔍 Search library"):
         if not query.strip():
             st.warning("Please enter a song or artist name.")
-            return
+        else:
+            results = mode2a.search_tracks(query=query, max_results=15)
+            st.session_state["mode2a_results"] = results
 
-        results = mode2a.search_tracks(query=query, max_results=15)
+    results = st.session_state["mode2a_results"]
 
-        if results.empty:
+    # If no results yet, stop here
+    if results is None or results.empty:
+        if query and results is not None and results.empty:
             st.error("No matches found. Try a different spelling or song.")
-            return
+        return
 
-        st.markdown("#### Search results")
-        # Show results in a table + let user pick one
-        # We'll use a selectbox keyed by df index
-        results_display = results[["track_name", "artists", "track_genre", "track_id"]]
-        st.dataframe(results_display.reset_index().rename(columns={"index": "df_index"}))
+    st.markdown("#### Search results")
 
-        # Let user choose a df index from the matches
-        valid_indices = results.index.tolist()
-        chosen_idx = st.selectbox(
-            "Pick a seed track (by dataframe index)",
-            options=valid_indices,
-        )
-
-        if st.button("🎧 Use this as my seed"):
-            _run_seed_flow(mode2a, df_index=int(chosen_idx))
-
-
-def _run_seed_flow(mode2a: Mode2ASeedFromSong, df_index: int):
-    st.markdown("---")
-    st.markdown("#### Seed track")
-
-    seed_row = mode2a.df.loc[df_index]
-    st.write(seed_row[["track_name", "artists", "track_genre", "track_id"]])
-
-    with st.spinner("Building a vibe-matching playlist from your seed..."):
-        now_playing, up_next, seed_idx = mode2a.recommend_from_seed(
-            df_index=df_index,
-            top_k=10,
-            lambda_vibe=0.8,
-            hide_explicit=True,
-        )
-
-    # Explanation for the top track
-    try:
-        rec_df_index = int(now_playing.name)
-        explanation = mode2a.explain_recommendation(
-            seed_idx=seed_idx,
-            rec_df_index=rec_df_index,
-            top_n_features=3,
-        )
-    except Exception as e:
-        explanation = f"(Could not generate explanation: {e})"
-
-    st.markdown("---")
-    st.markdown("#### Playlist")
-
-    render_now_playing_card(
-        now_playing,
-        title="Now playing",
-        explanation=explanation,
+    display_df = results[["track_name", "artists", "track_genre", "track_id"]].copy()
+    st.dataframe(
+        display_df.reset_index().rename(columns={"index": "df_index"})
     )
-    render_up_next_table(up_next)
+
+    # Let the user pick a row by dataframe index
+    idx_list = results.index.tolist()
+    chosen_idx = st.selectbox(
+        "Pick a seed track",
+        options=idx_list,
+        format_func=lambda i: f"{results.loc[i, 'track_name']} — {results.loc[i, 'artists']}",
+    )
+
+    if st.button("🎧 Use this as my seed"):
+        _run_seed_flow(mode2a, df_index=int(chosen_idx))
+
 
 
 # =========================

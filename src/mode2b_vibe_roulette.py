@@ -256,7 +256,7 @@ class Mode2BVibeRoulette:
         roulette.print_spin_result(now_playing, up_next, meta)
     """
 
-    def __init__(self, engine):
+    def __init__(self, engine, rng_seed: int = 42):
         """
         engine: an instance of your slider-based recommender, e.g. SliderVibeRecommender.
         It must implement:
@@ -268,6 +268,7 @@ class Mode2BVibeRoulette:
         """
         self.engine = engine
         self.df = engine.df
+        self.rng = np.random.default_rng(rng_seed)
         self._last_meta: Optional[Dict] = None  # for continuity hooks
 
     # ---------------- internal helpers ----------------
@@ -494,13 +495,13 @@ class Mode2BVibeRoulette:
         self,
         top_k: int = 10,
         lambda_vibe: float = 0.8,
-        min_popularity: Optional[int] = None,
         hide_explicit: bool = True,
-        allowed_genres: Optional[List[str]] = None,
+        min_popularity: Optional[int] = None,
         diversity: bool = True,
         diversity_threshold: float = 0.9,
-        when: Optional[datetime] = None,
-    ) -> Tuple[pd.Series, pd.DataFrame, Dict]:
+        explore_k: int = 20,
+        temperature: float = 0.7,
+    ) -> Tuple[pd.Series, pd.DataFrame, Dict[str, Any]]:
         """
         Perform one Vibe Roulette spin.
 
@@ -523,63 +524,108 @@ class Mode2BVibeRoulette:
                 - vibe_summary
                 - previous_meta (for continuity hooks)
         """
-        if top_k < 1:
-            raise ValueError("top_k must be >= 1")
+        # if top_k < 1:
+        #     raise ValueError("top_k must be >= 1")
 
-        dt = when or datetime.now()
-        day_type = _get_day_type(dt)
-        time_bucket = _get_time_bucket(dt)
+        # dt = when or datetime.now()
+        # day_type = _get_day_type(dt)
+        # time_bucket = _get_time_bucket(dt)
 
-        persona = self._choose_persona_for_context(day_type, time_bucket)
+        # persona = self._choose_persona_for_context(day_type, time_bucket)
 
+        # # recs = self.engine.recommend_by_sliders(
+        # #     sliders=persona.sliders,
+        # #     top_k=top_k,
+        # #     lambda_vibe=lambda_vibe,
+        # #     min_popularity=min_popularity,
+        # #     hide_explicit=hide_explicit,
+        # #     allowed_genres=allowed_genres,
+        # #     diversity=diversity,
+        # #     diversity_threshold=diversity_threshold,
+        # # )
         # recs = self.engine.recommend_by_sliders(
         #     sliders=persona.sliders,
-        #     top_k=top_k,
+        #     top_k=100,              # ask for a decent pool
         #     lambda_vibe=lambda_vibe,
-        #     min_popularity=min_popularity,
         #     hide_explicit=hide_explicit,
-        #     allowed_genres=allowed_genres,
-        #     diversity=diversity,
-        #     diversity_threshold=diversity_threshold,
+        #     min_popularity=min_popularity,
         # )
-        recs = self.engine.recommend_by_sliders(
-            sliders=persona.sliders,
-            top_k=100,              # ask for a decent pool
+
+        # if recs.empty:
+        #     raise RuntimeError("Vibe Roulette produced no recommendations. Check filters / data.")
+
+        # # now_playing = recs.iloc[0]
+        # # up_next = recs.iloc[1:].copy()
+        # now_playing, up_next = self._choose_now_playing_with_exploration(
+        #     recs,
+        #     explore_k=30,           # consider top 30 for randomness
+        #     temperature=0.25,       # tweak this if it feels too random / too greedy
+        # )
+
+        # vibe_summary = self._describe_sliders_short(persona.sliders)
+
+        # meta = {
+        #     "timestamp": dt,
+        #     "timestamp_iso": dt.isoformat(timespec="seconds"),
+        #     "day_type": day_type,
+        #     "time_bucket": time_bucket,
+        #     "persona_name": persona.name,
+        #     "persona_tagline": persona.tagline,
+        #     "persona_sliders": persona.sliders,
+        #     "persona_emoji": persona.emoji,
+        #     "persona_tags": persona.tags,
+        #     "vibe_summary": vibe_summary,
+        #     "previous_meta": self._last_meta,
+        # }
+
+        # # update continuity state
+        # self._last_meta = meta
+
+        # return now_playing, up_next, meta
+        now = datetime.datetime.now()
+        weekday_bucket, time_bucket = self._get_context_buckets(now)
+        persona_name, sliders = self._pick_persona(weekday_bucket, time_bucket)
+
+        # Candidate pool size (we'll sample from the top `explore_k`)
+        candidate_k = max(top_k, explore_k)
+
+        base_recs = self.engine.recommend_by_sliders(
+            sliders=sliders,
+            top_k=candidate_k,
             lambda_vibe=lambda_vibe,
             hide_explicit=hide_explicit,
             min_popularity=min_popularity,
+            diversity=diversity,
+            diversity_threshold=diversity_threshold,
         )
 
-        if recs.empty:
-            raise RuntimeError("Vibe Roulette produced no recommendations. Check filters / data.")
+        if base_recs.empty:
+            raise RuntimeError("No recommendations for this persona/context.")
 
-        # now_playing = recs.iloc[0]
-        # up_next = recs.iloc[1:].copy()
-        now_playing, up_next = self._choose_now_playing_with_exploration(
-            recs,
-            explore_k=30,           # consider top 30 for randomness
-            temperature=0.25,       # tweak this if it feels too random / too greedy
-        )
+        # Take top explore_k candidates
+        pool = base_recs.iloc[: min(explore_k, len(base_recs))].copy()
+        n = len(pool)
 
-        vibe_summary = self._describe_sliders_short(persona.sliders)
+        # Exploration: higher `temperature` ⇒ flatter distribution
+        ranks = np.arange(n)          # 0 = best
+        inv_ranks = n - ranks         # 1..n
+        weights = inv_ranks.astype(float) ** (1.0 / max(temperature, 1e-3))
+        probs = weights / weights.sum()
+
+        idx_in_pool = self.rng.choice(n, p=probs)
+        now_playing = pool.iloc[idx_in_pool]
+
+        # Queue = rest of pool, best-ranked first, excluding chosen now_playing
+        queue_df = pool.drop(pool.index[idx_in_pool], axis=0)
+        up_next = queue_df.iloc[: max(0, top_k - 1)].copy()
 
         meta = {
-            "timestamp": dt,
-            "timestamp_iso": dt.isoformat(timespec="seconds"),
-            "day_type": day_type,
+            "persona_name": persona_name,
+            "sliders_used": sliders,
+            "weekday_bucket": weekday_bucket,
             "time_bucket": time_bucket,
-            "persona_name": persona.name,
-            "persona_tagline": persona.tagline,
-            "persona_sliders": persona.sliders,
-            "persona_emoji": persona.emoji,
-            "persona_tags": persona.tags,
-            "vibe_summary": vibe_summary,
-            "previous_meta": self._last_meta,
+            "timestamp": now.isoformat(),
         }
-
-        # update continuity state
-        self._last_meta = meta
-
         return now_playing, up_next, meta
 
     def print_spin_result(
