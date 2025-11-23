@@ -1,7 +1,7 @@
 # mode2b_vibe_roulette.py
 
 """
-Mode 2B — Vibe Roulette (Time-of-Day Aware + Storytelling + Spotify Embed)
+Mode 2B — Vibe Roulette (Time-of-Day Aware)
 """
 
 from __future__ import annotations
@@ -18,15 +18,12 @@ import pandas as pd
 @dataclass(frozen=True)
 class TimeOfDayPersona:
     name: str
-    sliders: Dict[str, float]  # 0–100
+    sliders: Dict[str, float]
     tagline: str
     emoji: str = ""
     tags: Tuple[str, ...] = ()
 
 
-# ---------------------------------------------------------------------
-# 1. Define personas
-# ---------------------------------------------------------------------
 
 SOFT_SUNRISE = TimeOfDayPersona(
     name="Soft Sunrise Focus",
@@ -157,17 +154,12 @@ NEON_CITY = TimeOfDayPersona(
 )
 
 
-# Map (day_type, time_bucket) to possible personas
-# day_type: "weekday" or "weekend"
-# time_bucket: "morning", "afternoon", "evening", "late_night"
 CONTEXT_PERSONAS: Dict[Tuple[str, str], List[TimeOfDayPersona]] = {
-    # Weekday
     ("weekday", "morning"):    [SOFT_SUNRISE],
     ("weekday", "afternoon"):  [FLOW_STATE],
     ("weekday", "evening"):    [UNWIND_AFTER_HOURS],
     ("weekday", "late_night"): [MIDNIGHT_LOFI],
 
-    # Weekend
     ("weekend", "morning"):    [LAZY_BRUNCH],
     ("weekend", "afternoon"):  [GOLDEN_HOUR],
     ("weekend", "evening"):    [NIGHT_OUT],
@@ -175,24 +167,12 @@ CONTEXT_PERSONAS: Dict[Tuple[str, str], List[TimeOfDayPersona]] = {
 }
 
 
-# ---------------------------------------------------------------------
-# 2. Helper functions: context inference
-# ---------------------------------------------------------------------
 
 def _get_day_type(dt: datetime) -> str:
-    """Return 'weekday' or 'weekend' from a datetime."""
-    # Monday=0, Sunday=6
     return "weekend" if dt.weekday() >= 5 else "weekday"
 
 
 def _get_time_bucket(dt: datetime) -> str:
-    """
-    Map hour to a coarse bucket:
-        morning   : 05-11
-        afternoon : 11-17
-        evening   : 17-22
-        late_night: 22-05
-    """
     h = dt.hour
     if 5 <= h < 11:
         return "morning"
@@ -204,32 +184,22 @@ def _get_time_bucket(dt: datetime) -> str:
         return "late_night"
 
 
-# ---------------------------------------------------------------------
-# 3. Main class: Mode 2B Vibe Roulette
-# ---------------------------------------------------------------------
-
 class Mode2BVibeRoulette:
-    """
-    Mode 2B: 1-click "Vibe Roulette" based on time-of-day and weekday/weekend.
-    """
 
     def __init__(self, engine, rng_seed: int = 42):
-        """
-        engine: SliderVibeRecommender-like instance.
-        """
+
         self.engine = engine
         self.df = engine.df
         self.rng = np.random.default_rng(rng_seed)
         self._last_meta: Optional[Dict[str, Any]] = None
 
-    # ---------------- internal helpers ----------------
 
     def _choose_persona_for_context(
         self,
         day_type: str,
         time_bucket: str,
     ) -> TimeOfDayPersona:
-        """Randomly choose a persona for the given (day_type, time_bucket)."""
+
         key = (day_type, time_bucket)
         if key not in CONTEXT_PERSONAS:
             key = ("weekday", "afternoon")
@@ -237,10 +207,7 @@ class Mode2BVibeRoulette:
         return random.choice(candidates)
 
     def _describe_sliders_short(self, sliders: Dict[str, float]) -> str:
-        """
-        Turn sliders into a small mood description, e.g.:
-        - "soft & low-key · more chill than dancey · slower, relaxed tempo"
-        """
+
         phrases = []
 
         energy = sliders.get("energy", 50)
@@ -296,10 +263,7 @@ class Mode2BVibeRoulette:
         now_playing: pd.Series,
         top_n_features: int = 2,
     ) -> str:
-        """
-        Light explanation: which vibe dimensions are closest between
-        the persona sliders and the recommended track?
-        """
+
         if not hasattr(self.engine, "_sliders_to_target_vec"):
             return ""
 
@@ -386,10 +350,7 @@ class Mode2BVibeRoulette:
         explore_k: int = 30,
         temperature: float = 0.7,
     ) -> Tuple[pd.Series, pd.DataFrame]:
-        """
-        Given a sorted recs dataframe (best first),
-        pick a 'now playing' track with a bit of randomness.
-        """
+
         if recs.empty:
             raise RuntimeError("No recommendations available for this persona/context.")
 
@@ -410,7 +371,6 @@ class Mode2BVibeRoulette:
 
         return now_playing, up_next
 
-    # ---------------- public API ----------------
 
     def spin(
         self,
@@ -462,7 +422,7 @@ class Mode2BVibeRoulette:
             "timestamp": dt,
             "timestamp_iso": dt.isoformat(timespec="seconds"),
             "day_type": day_type,
-            "time_bucket": time_bucket,  # e.g. 'evening', 'late_night'
+            "time_bucket": time_bucket,
             "persona_name": persona.name,
             "persona_tagline": persona.tagline,
             "persona_sliders": persona.sliders,
@@ -487,12 +447,12 @@ class Mode2BVibeRoulette:
         Pretty-print the Vibe Roulette result in a notebook.
         """
         try:
-            from IPython.display import display, IFrame  # type: ignore
+            from IPython.display import display, IFrame
             have_ipython = True
         except ImportError:
             have_ipython = False
-            display = None  # type: ignore
-            IFrame = None   # type: ignore
+            display = None
+            IFrame = None
 
         track_name = now_playing.get("track_name", "Unknown track")
         artist = now_playing.get("artists", "Unknown artist")

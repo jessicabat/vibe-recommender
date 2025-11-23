@@ -1,15 +1,12 @@
-# app_streamlit.py
-
 import datetime
 from typing import Optional, Callable, Any
-
 import numpy as np
 import pandas as pd
 import streamlit as st
 
-from vibe_engine import VibeEngine
-from mode2a_seed_from_song import Mode2ASeedFromSong
-from mode2b_vibe_roulette import Mode2BVibeRoulette, TimeOfDayPersona
+from vibe_engine_full import VibeEngine
+from mode2a_seed_from_song_full import Mode2ASeedFromSong
+from mode2b_vibe_roulette_full import Mode2BVibeRoulette, TimeOfDayPersona
 
 
 # =========================
@@ -18,10 +15,6 @@ from mode2b_vibe_roulette import Mode2BVibeRoulette, TimeOfDayPersona
 
 DATA_PATH = "data/spotify_tracks.csv"
 
-
-# =========================
-# 1. CACHED LOADERS
-# =========================
 
 @st.cache_data
 def load_tracks(path: str) -> pd.DataFrame:
@@ -38,9 +31,6 @@ def load_engine_and_modes(path: str):
     return engine, mode2a, mode2b
 
 
-# =========================
-# 2. UI HELPERS
-# =========================
 
 def render_spotify_embed(track_id: Optional[str]) -> None:
     """Render a Spotify player if track_id is present."""
@@ -98,13 +88,7 @@ def render_playlist_with_controls(
     mode_key: str,
     explanation_provider: Optional[Callable[[pd.Series], Optional[str]]] = None,
 ) -> None:
-    """
-    Shared "player" UI for all modes:
-      - reads playlist + current_idx from st.session_state for `mode_key`
-      - renders Now playing card
-      - shows Previous / Skip buttons
-      - shows Up Next as mini cards with inline Play buttons
-    """
+
     playlist: Optional[pd.DataFrame] = st.session_state.get(f"{mode_key}_playlist")
     if playlist is None or playlist.empty:
         return
@@ -115,7 +99,6 @@ def render_playlist_with_controls(
 
     now_playing = playlist.iloc[current_idx]
 
-    # Optional explanation hook
     explanation = None
     if explanation_provider is not None:
         try:
@@ -132,7 +115,6 @@ def render_playlist_with_controls(
         explanation=explanation,
     )
 
-    # Transport controls
     col_prev, col_skip = st.columns([1, 1])
     with col_prev:
         disabled_prev = current_idx == 0
@@ -148,7 +130,6 @@ def render_playlist_with_controls(
                 st.session_state[f"{mode_key}_current_idx"] = current_idx + 1
                 st.rerun()
 
-    # Up Next
     up_next_start = current_idx + 1
     st.markdown("### 🎵 Up Next")
 
@@ -156,10 +137,9 @@ def render_playlist_with_controls(
         st.caption("Queue is empty. Skip backwards or generate a new playlist.")
         return
 
-    # Render each upcoming track as a mini-card with a Play button
     for pos in range(up_next_start, len(playlist)):
         row = playlist.iloc[pos]
-        display_pos = pos + 1  # human-friendly position
+        display_pos = pos + 1
 
         title = row.get("track_name", "Unknown track")
         artist = row.get("artists", "Unknown artist")
@@ -205,9 +185,6 @@ def render_playlist_with_controls(
             st.markdown(card_html, unsafe_allow_html=True)
 
 
-# =========================
-# 3. MODE 1: SLIDERS
-# =========================
 
 def page_mode1_sliders(engine: VibeEngine):
     st.markdown("### Dial in a vibe 🎚️")
@@ -306,9 +283,6 @@ def page_mode1_sliders(engine: VibeEngine):
     render_playlist_with_controls(mode_key="mode1")
 
 
-# =========================
-# 4. MODE 2A: SEED FROM SONG
-# =========================
 
 def page_mode2a_seed_from_song(mode2a: Mode2ASeedFromSong):
     st.markdown("### Start from a song 🎵")
@@ -336,7 +310,6 @@ def page_mode2a_seed_from_song(mode2a: Mode2ASeedFromSong):
     if results is None or results.empty:
         if query and results is not None and results.empty:
             st.error("No matches found. Try a different spelling or song.")
-        # Even if no results, we might still have an existing playlist
         if st.session_state.get("mode2a_playlist") is not None:
             def explanation_provider(row: pd.Series) -> Optional[str]:
                 seed_idx = st.session_state.get("mode2a_seed_idx")
@@ -411,9 +384,6 @@ def page_mode2a_seed_from_song(mode2a: Mode2ASeedFromSong):
         render_playlist_with_controls("mode2a", explanation_provider=explanation_provider)
 
 
-# =========================
-# 5. MODE 2B: VIBE ROULETTE
-# =========================
 
 def page_mode2b_vibe_roulette(mode2b: Mode2BVibeRoulette):
     st.markdown("### Vibe Roulette 🎲")
@@ -461,7 +431,6 @@ def page_mode2b_vibe_roulette(mode2b: Mode2BVibeRoulette):
         else:
             time_str = datetime.datetime.now().strftime("%A %I:%M %p")
 
-        # Support both old and new meta formats
         persona = meta.get("persona_name", "Unknown persona")
         day_type = meta.get("day_type", meta.get("weekday_bucket", ""))
         time_bucket = meta.get("time_bucket", "")
@@ -478,7 +447,6 @@ def page_mode2b_vibe_roulette(mode2b: Mode2BVibeRoulette):
         with st.expander("See the persona vibe profile I used"):
             st.json(sliders)
 
-        # Explanation provider: why does this track fit this persona?
         def explanation_provider(row: pd.Series) -> Optional[str]:
             return mode2b._explain_match(
                 persona=TimeOfDayPersona(
@@ -495,9 +463,6 @@ def page_mode2b_vibe_roulette(mode2b: Mode2BVibeRoulette):
         render_playlist_with_controls("mode2b", explanation_provider=explanation_provider)
 
 
-# =========================
-# 6. MAIN APP
-# =========================
 
 def main():
     st.set_page_config(
@@ -524,7 +489,7 @@ def main():
     st.sidebar.markdown("---")
     st.sidebar.markdown("Built with cosine similarity, hybrid scoring, and personas.")
 
-    # ---------- HERO MODE PICKER ----------
+
     st.markdown("## Choose how you want to set the vibe")
     st.markdown(
         "Pick a starting point below. You can always come back and try another one."
@@ -564,7 +529,6 @@ def main():
 
     st.markdown("---")
 
-    # 🔁 read selected mode after potential reruns
     selected_mode = st.session_state.get("selected_mode")
 
     if selected_mode == "mode1":
@@ -582,3 +546,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# source .venv/bin/activate
+# streamlit run src/app_streamlit_test.py
