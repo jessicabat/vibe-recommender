@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Vibe Recommender – Mood-first music recommendations</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta
+    name="description"
+    content="Vibe Recommender – a content-based music recommender that matches you on vibe using Spotify-style audio features, cosine similarity, and time-of-day personas."
+  />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <style>
+    :root {
+      --bg: #050509;
+      --bg-elevated: #101018;
+      --bg-card: #12121c;
+      --bg-card-hover: #181826;
+      --accent: #1db954;
+      --accent-soft: rgba(29, 185, 84, 0.12);
+      --text: #f5f5f7;
+      --text-muted: #a0a0b3;
+      --border-subtle: #262637;
+      --danger: #ff4b81;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+      background: radial-gradient(circle at top, #181826 0, #050509 40%);
+      color: var(--text);
+      scroll-behavior: smooth;
+    }
+
+    body {
+      min-height: 100vh;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    /* Layout */
+
+    .page {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 1.25rem 1.25rem 4rem;
+    }
+
+    @media (min-width: 1200px) {
+      .page {
+        padding-top: 2rem;
+      }
+    }
+
+    /* Top nav */
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 15;
+      backdrop-filter: blur(18px);
+      background: linear-gradient(
+        to bottom,
+        rgba(5, 5, 9, 0.94),
+        rgba(5, 5, 9, 0.82),
+        transparent
+      );
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .nav-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 0.7rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+    }
+
+    .nav-logo-pill {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #42ff9e, #0c5a2d);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+    }
+
+    .nav-title {
+      font-weight: 600;
+      font-size: 0.98rem;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: #d0d0dd;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+      font-size: 0.9rem;
+    }
+
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      position: relative;
+      padding-bottom: 3px;
+    }
+
+    .nav-links a::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 0;
+      height: 2px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #1db954, #42ff9e);
+      transition: width 0.18s ease-out;
+    }
+
+    .nav-links a:hover::after {
+      width: 100%;
+    }
+
+    .nav-cta {
+      display: flex;
+      gap: 0.6rem;
+    }
+
+    .btn {
+      border-radius: 999px;
+      padding: 0.45rem 1rem;
+      font-size: 0.88rem;
+      border: 1px solid transparent;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.18s ease-out;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #1db954, #13a848);
+      color: #050509;
+      font-weight: 600;
+    }
+
+    .btn-primary:hover {
+      filter: brightness(1.08);
+      transform: translateY(-1px);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+    }
+
+    .btn-ghost {
+      background: rgba(255, 255, 255, 0.02);
+      color: var(--text);
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .btn-ghost:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.14);
+      transform: translateY(-1px);
+    }
+
+    @media (max-width: 720px) {
+      .nav-inner {
+        flex-wrap: wrap;
+        row-gap: 0.6rem;
+      }
+      .nav-links {
+        display: none;
+      }
+      .nav-cta {
+        margin-left: auto;
+      }
+    }
+
+    /* Hero */
+
+    #hero {
+      padding-top: 2.8rem;
+      padding-bottom: 2.6rem;
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+      gap: 2.5rem;
+      align-items: center;
+    }
+
+    @media (max-width: 900px) {
+      #hero {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 1.8rem;
+      }
+    }
+
+    .hero-eyebrow {
+      font-size: 0.8rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 500;
+      margin-bottom: 0.6rem;
+    }
+
+    .hero-title {
+      font-size: clamp(2.4rem, 4vw, 3rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.6rem;
+    }
+
+    .hero-highlight {
+      background: linear-gradient(90deg, #1db954, #7af0c9);
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+
+    .hero-subtitle {
+      font-size: 0.98rem;
+      color: var(--text-muted);
+      max-width: 36rem;
+      line-height: 1.6;
+      margin-bottom: 1.4rem;
+    }
+
+    .hero-subsubtitle {
+      font-size: 0.85rem;
+      color: #83839a;
+      margin-top: 0.4rem;
+      line-height: 1.5;
+    }
+
+    .hero-cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+      align-items: center;
+      margin-bottom: 1.2rem;
+    }
+
+    .hero-demo-note {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .hero-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.8rem;
+    }
+
+    .pill {
+      font-size: 0.75rem;
+      padding: 0.14rem 0.7rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.02);
+      color: var(--text-muted);
+    }
+
+    .pill strong {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .hero-visual {
+      border-radius: 20px;
+      background: radial-gradient(circle at 20% 0, #1db95433 0, transparent 55%),
+        radial-gradient(circle at 90% 40%, #3b36ff33 0, transparent 55%),
+        #050509;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 1.1rem 1rem;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.75);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-visual-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.6rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .hero-visual-badge {
+      border-radius: 999px;
+      padding: 0.2rem 0.7rem;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 0.73rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .hero-visual-main {
+      border-radius: 14px;
+      padding: 0.9rem;
+      background: rgba(5, 5, 9, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      display: grid;
+      grid-template-columns: 56px minmax(0, 1.6fr);
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .hero-cover {
+      width: 56px;
+      height: 56px;
+      border-radius: 10px;
+      background: radial-gradient(circle at 30% 20%, #ffffff, #1db954);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-cover::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(0, 0, 0, 0.1), rgba(5, 5, 9, 0.8));
+      mix-blend-mode: multiply;
+    }
+
+    .hero-track-title {
+      font-size: 0.92rem;
+      font-weight: 600;
+      margin-bottom: 0.15rem;
+    }
+
+    .hero-track-artist {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 0.3rem;
+    }
+
+    .hero-bars {
+      display: flex;
+      gap: 3px;
+      align-items: flex-end;
+      margin-top: 0.4rem;
+    }
+
+    .hero-bar {
+      width: 4px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #42ff9e, #1db954);
+      opacity: 0.65;
+      animation: barPulse 1s ease-in-out infinite alternate;
+    }
+
+    .hero-bar:nth-child(2) { animation-delay: 0.1s; }
+    .hero-bar:nth-child(3) { animation-delay: 0.2s; }
+    .hero-bar:nth-child(4) { animation-delay: 0.3s; }
+
+    @keyframes barPulse {
+      from {
+        height: 10px;
+        opacity: 0.5;
+      }
+      to {
+        height: 26px;
+        opacity: 1;
+      }
+    }
+
+    .hero-visual-footer {
+      margin-top: 0.8rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .hero-chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .chip {
+      font-size: 0.72rem;
+      padding: 0.18rem 0.45rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .hero-visual-note {
+      font-size: 0.73rem;
+      color: var(--text-muted);
+    }
+
+    /* Sections */
+
+    section {
+      padding-top: 2.2rem;
+      padding-bottom: 1.6rem;
+    }
+
+    section h2 {
+      font-size: 1.3rem;
+      margin-bottom: 0.4rem;
+      letter-spacing: -0.01em;
+    }
+
+    section p {
+      font-size: 0.96rem;
+      color: var(--text-muted);
+      max-width: 46rem;
+      line-height: 1.7;
+    }
+
+    /* Why section */
+
+    #why .why-card {
+      border-radius: 16px;
+      background: rgba(5, 5, 9, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 1.1rem 1.1rem 1rem;
+      margin-top: 0.8rem;
+      font-size: 0.94rem;
+      color: var(--text-muted);
+    }
+
+    #why .why-card strong {
+      color: var(--text);
+    }
+
+    /* Modes section */
+
+    #modes {
+      padding-top: 2.4rem;
+    }
+
+    .mode-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1.2rem;
+      margin-top: 1.2rem;
+    }
+
+    @media (max-width: 960px) {
+      .mode-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .mode-card {
+      border-radius: 18px;
+      background: linear-gradient(145deg, rgba(18, 18, 28, 0.96), rgba(12, 12, 18, 0.96));
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 1rem 1rem 0.9rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.18s ease-out, box-shadow 0.18s ease-out,
+        border-color 0.18s ease-out, background 0.18s ease-out;
+    }
+
+    .mode-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.7);
+      border-color: rgba(66, 255, 158, 0.6);
+      background: linear-gradient(145deg, #171726, #101018);
+    }
+
+    .mode-card::after {
+      content: "";
+      position: absolute;
+      inset: -40%;
+      background: radial-gradient(circle at 0% 0%, rgba(66, 255, 158, 0.18), transparent 60%);
+      opacity: 0;
+      transition: opacity 0.2s ease-out;
+      pointer-events: none;
+    }
+
+    .mode-card:hover::after {
+      opacity: 1;
+    }
+
+    .mode-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 999px;
+      background: rgba(29, 185, 84, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      margin-bottom: 0.1rem;
+    }
+
+    .mode-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+    }
+
+    .mode-pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      font-size: 0.74rem;
+    }
+
+    .mode-pill {
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 0.14rem 0.5rem;
+      color: var(--text-muted);
+    }
+
+    .mode-description {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .mode-tech {
+      font-size: 0.8rem;
+      color: #8e8ebe;
+      margin-top: 0.05rem;
+    }
+
+    .mode-link {
+      margin-top: 0.4rem;
+      font-size: 0.82rem;
+      color: var(--accent);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .mode-link span {
+      font-size: 0.9rem;
+    }
+
+    /* Mode detail sections */
+
+    .mode-detail-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+      gap: 1.8rem;
+      margin-top: 1.4rem;
+      align-items: flex-start;
+    }
+
+    @media (max-width: 900px) {
+      .mode-detail-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .mode-detail-card {
+      border-radius: 18px;
+      background: rgba(7, 7, 12, 0.96);
+      border: 1px solid rgba(29, 185, 84, 0.6);
+      padding: 1rem 1.2rem;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .mode-detail-card h3 {
+      margin-top: 0.1rem;
+      margin-bottom: 0.4rem;
+      font-size: 0.98rem;
+      color: var(--text);
+    }
+
+    .mode-detail-card ul {
+      list-style: none;
+      padding-left: 0;
+      margin: 0.35rem 0 0.7rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .mode-detail-card li {
+      border-radius: 12px;
+      border: 1px solid rgba(29, 185, 84, 0.45);
+      background: rgba(29, 185, 84, 0.06);
+      padding: 0.4rem 0.6rem;
+      font-size: 0.86rem;
+      line-height: 1.5;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .mode-detail-card li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: linear-gradient(180deg, #42ff9e, #1db954);
+    }
+
+    .mode-screenshot {
+      border-radius: 18px;
+      border: 1px solid rgba(29, 185, 84, 0.4);
+      background: #050509;
+      padding: 0.4rem;
+      min-height: 180px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .mode-screenshot img {
+      max-width: 100%;
+      border-radius: 14px;
+      display: block;
+    }
+
+    /* Under the hood */
+
+    #under-the-hood .tech-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1rem;
+      margin-top: 1.2rem;
+    }
+
+    @media (max-width: 960px) {
+      #under-the-hood .tech-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .tech-card {
+      border-radius: 18px;
+      background: rgba(7, 7, 12, 0.96);
+      border: 1px solid rgba(29, 185, 84, 0.5);
+      padding: 0.9rem 1rem;
+      font-size: 0.86rem;
+      color: var(--text-muted);
+    }
+
+    .tech-card h3 {
+      margin-top: 0;
+      margin-bottom: 0.4rem;
+      font-size: 0.92rem;
+      color: var(--text);
+    }
+
+    .tech-card ul {
+      list-style: none;
+      padding-left: 0;
+      margin: 0.3rem 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .tech-card li {
+      border-radius: 10px;
+      border: 1px solid rgba(29, 185, 84, 0.35);
+      background: rgba(29, 185, 84, 0.04);
+      padding: 0.35rem 0.55rem;
+      font-size: 0.84rem;
+      line-height: 1.5;
+    }
+
+    /* Future cards */
+
+    #future .future-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+      margin-top: 1.2rem;
+    }
+
+    @media (max-width: 800px) {
+      #future .future-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .future-card {
+      border-radius: 18px;
+      background: rgba(7, 7, 12, 0.96);
+      border: 1px solid rgba(29, 185, 84, 0.5);
+      padding: 0.9rem 1rem;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .future-card h3 {
+      margin-top: 0;
+      margin-bottom: 0.3rem;
+      font-size: 0.98rem;
+      color: var(--text);
+    }
+
+    .future-card p {
+      margin: 0;
+      font-size: 0.88rem;
+      line-height: 1.6;
+    }
+
+    /* About */
+
+    #about {
+      padding-top: 2.4rem;
+      padding-bottom: 3rem;
+    }
+
+    .about-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr);
+      gap: 1.8rem;
+    }
+
+    @media (max-width: 900px) {
+      .about-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .about-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.8rem;
+    }
+
+    .about-links a {
+      font-size: 0.86rem;
+    }
+
+    .badge {
+      font-size: 0.76rem;
+      padding: 0.14rem 0.65rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+    }
+
+    footer {
+      font-size: 0.74rem;
+      text-align: center;
+      color: var(--text-muted);
+      padding: 1.5rem 1.25rem 2rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-inner">
+      <div class="nav-left">
+        <div class="nav-logo-pill">🎧</div>
+        <div class="nav-title">Vibe Recommender</div>
+      </div>
+      <nav class="nav-links">
+        <a href="#why">Why</a>
+        <a href="#modes">Modes</a>
+        <a href="#under-the-hood">Under the hood</a>
+        <a href="#future">Next steps</a>
+        <a href="#about">About</a>
+      </nav>
+      <div class="nav-cta">
+        <a
+          class="btn btn-ghost"
+          href="https://github.com/jessicabat/vibe-recommender"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span>View repo</span>
+        </a>
+        <a
+          class="btn btn-primary"
+          href="https://github.com/jessicabat/vibe-recommender"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span>Run locally (see README)</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <!-- HERO -->
+    <section id="hero">
+      <div>
+        <div class="hero-eyebrow">recommender systems</div>
+        <h1 class="hero-title">
+          Mood-first <span class="hero-highlight">Vibe Recommender</span>
+        </h1>
+        <p class="hero-subtitle">
+          I got tired of Spotify DJ hallucinating my mood, so I built a content-based
+          recommender that actually listens to audio features – danceability, energy,
+          valence, tempo, acousticness, instrumentalness and speechiness – then matches
+          you in that 7D vibe space.
+        </p>
+        <div class="hero-cta-row">
+          <a
+            class="btn btn-primary"
+            href="https://github.com/jessicabat/vibe-recommender"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <span>Open GitHub repo</span> <span>↗</span>
+          </a>
+          <a class="btn btn-ghost" href="#under-the-hood">
+            <span>See how it works</span>
+          </a>
+        </div>
+        <div class="hero-demo-note">
+          Built with Python, Streamlit, and cosine similarity.  
+          Runs locally via <code>streamlit run app_streamlit.py</code> (setup in the README).
+        </div>
+
+        <div class="hero-tags">
+          <div class="pill"><strong>Core:</strong> content-based recommender</div>
+          <div class="pill"><strong>Features:</strong> 7D audio vibe</div>
+          <div class="pill"><strong>UX:</strong> sliders • seed song • roulette</div>
+        </div>
+
+        <p class="hero-subsubtitle">
+          This isn’t just a notebook – it’s an end-to-end slice with a small “player”
+          UX, so you can actually feel how the ranking and diversity logic behave.
+        </p>
+      </div>
+
+      <aside class="hero-visual">
+        <div class="hero-visual-header">
+          <span>Live spin preview</span>
+          <span class="hero-visual-badge">time-aware vibe</span>
+        </div>
+        <div class="hero-visual-main">
+          <div class="hero-cover"></div>
+          <div>
+            <div class="hero-track-title">Golden Hour Groove</div>
+            <div class="hero-track-artist">vibe match • content-based</div>
+            <div class="hero-chip-row">
+              <div class="chip">vibe sim 0.93</div>
+              <div class="chip">λ = 0.8</div>
+              <div class="chip">diverse queue</div>
+            </div>
+            <div class="hero-bars">
+              <div class="hero-bar"></div>
+              <div class="hero-bar"></div>
+              <div class="hero-bar"></div>
+              <div class="hero-bar"></div>
+            </div>
+          </div>
+        </div>
+        <div class="hero-visual-footer">
+          <div class="hero-visual-note">
+            “Given your sliders, seed song, or current time, I rank ~114k tracks
+            with weighted cosine similarity and popularity-aware scoring.”
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <!-- WHY -->
+    <section id="why">
+      <h2>Why I built this</h2>
+      <p>
+        Most music recommendations feel like genre guesses plus a bit of time-of-day
+        heuristics. Spotify DJ is fun, but it often misreads the vibe I’m actually
+        in: maybe I want low-speech, high-energy instrumentals, not “chill pop”.
+      </p>
+      <div class="why-card">
+        I wanted a DJ that thinks the way I do about music:
+        <strong>
+          “danceable but not hyper, mid-tempo, bright, not too acoustic, not too talky”
+        </strong>
+        – not just “give me more pop”. So I built a system that lives in a
+        7-dimensional vibe space and lets you steer it three ways: dialing in sliders,
+        starting from a song you love, or letting a time-of-day persona spin for you.
+      </div>
+    </section>
+
+    <!-- MODES (cards) -->
+    <section id="modes">
+      <h2>Three ways to talk to the recommender</h2>
+      <p>
+        Same engine under the hood, three entry points. Each mode is a different way
+        to express what you want, from precise control to “just surprise me, but make
+        it make sense”.
+      </p>
+
+      <div class="mode-grid">
+        <!-- Mode 1 -->
+        <a class="mode-card" href="#mode1">
+          <div class="mode-icon">🎚️</div>
+          <div class="mode-title">Dial in a vibe</div>
+          <div class="mode-pill-row">
+            <div class="mode-pill">7 sliders</div>
+            <div class="mode-pill">λ: vibe vs popularity</div>
+            <div class="mode-pill">diversity-aware queue</div>
+          </div>
+          <div class="mode-description">
+            You know how you want the music to feel. Set danceability, energy,
+            valence, tempo, acousticness, instrumentalness and speechiness.
+          </div>
+          <div class="mode-tech">
+            Under the hood: sliders map into standardized 7D audio features, then
+            weighted cosine similarity + popularity scoring ranks ~114k tracks.
+          </div>
+          <div class="mode-link">
+            Learn more <span>↪</span>
+          </div>
+        </a>
+
+        <!-- Mode 2A -->
+        <a class="mode-card" href="#mode2a">
+          <div class="mode-icon">🎵</div>
+          <div class="mode-title">Start from a song</div>
+          <div class="mode-pill-row">
+            <div class="mode-pill">search library</div>
+            <div class="mode-pill">seed-based</div>
+            <div class="mode-pill">“why this track?”</div>
+          </div>
+          <div class="mode-description">
+            Type a song or artist you love. I find it in the library, treat its audio
+            features as your target vibe, and surface its closest neighbors.
+          </div>
+          <div class="mode-tech">
+            Seed track’s embedding becomes the target vector; I recommend via cosine
+            neighbors and generate a short explanation based on closest features.
+          </div>
+          <div class="mode-link">
+            Learn more <span>↪</span>
+          </div>
+        </a>
+
+        <!-- Mode 2B -->
+        <a class="mode-card" href="#mode2b">
+          <div class="mode-icon">🎲</div>
+          <div class="mode-title">Vibe Roulette</div>
+          <div class="mode-pill-row">
+            <div class="mode-pill">time-of-day personas</div>
+            <div class="mode-pill">softmax exploration</div>
+            <div class="mode-pill">one-click UX</div>
+          </div>
+          <div class="mode-description">
+            One button. I look at the current day + time, pick a persona like
+            “Soft Sunrise Focus” or “Night Out Pre-Game”, and spin a playlist.
+          </div>
+          <div class="mode-tech">
+            Persona slider profiles tuned to dataset stats; I sample “now playing”
+            from the top candidates using temperature-controlled probabilities.
+          </div>
+          <div class="mode-link">
+            Learn more <span>↪</span>
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <!-- Mode 1 detail -->
+    <section id="mode1">
+      <h2>Mode 1 · Dial in a vibe</h2>
+      <div class="mode-detail-grid">
+        <div>
+          <p>
+            This is the “I know what I want” entry point. You talk to the system in
+            the same language you use with friends: “more energetic but mid-tempo,
+            less talky, not too acoustic”.
+          </p>
+          <div class="mode-detail-card">
+            <h3>What the user does</h3>
+            <ul>
+              <li>Adjust 7 sliders: danceability, energy, valence, tempo, acousticness, instrumentalness, speechiness.</li>
+              <li>Pick how much to trust vibe vs popularity with a single λ slider.</li>
+              <li>Choose playlist style: tightly focused, balanced, or exploratory.</li>
+            </ul>
+            <h3>What the system does</h3>
+            <ul>
+              <li>Map sliders into the same 7D space as the tracks (with tempo scaled to dataset min/max).</li>
+              <li>Standardize with <code>StandardScaler</code> and apply per-feature weights.</li>
+              <li>Compute weighted cosine similarity to every track.</li>
+              <li>Blend vibe similarity with popularity and greedily build a diverse queue.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="mode-screenshot">
+          <!-- Example: <img src="assets/mode1_sliders.gif" alt="Screenshot of Mode 1 sliders UI" /> -->
+          <span>Mode 1 UI: sliders + “Now playing” card + queue (screenshot or GIF goes here).</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Mode 2A detail -->
+    <section id="mode2a">
+      <h2>Mode 2A · Start from a song</h2>
+      <div class="mode-detail-grid">
+        <div>
+          <p>
+            When you have one specific track in mind, this mode uses it as an anchor.
+            It’s basically “more like this”, but grounded in the actual audio
+            features instead of collaborative filtering.
+          </p>
+          <div class="mode-detail-card">
+            <h3>What the user does</h3>
+            <ul>
+              <li>Searches the Kaggle library by track or artist name.</li>
+              <li>Picks one seed song from the results.</li>
+              <li>Listens to the recommended queue, with the ability to skip or jump.</li>
+            </ul>
+            <h3>What the system does</h3>
+            <ul>
+              <li>Looks up the seed track’s standardized 7D embedding.</li>
+              <li>Uses that embedding as the target in the same similarity + scoring pipeline.</li>
+              <li>Drops the seed from the results and returns a queue of its closest neighbors.</li>
+              <li>Explains each recommendation via “closest features” (e.g. similar energy + tempo + instrumentalness).</li>
+            </ul>
+          </div>
+        </div>
+        <div class="mode-screenshot">
+          <!-- Example: <img src="assets/mode2a_seed.gif" alt="Seed-from-song flow in the app" /> -->
+          <span>Mode 2A: seed search → seed selection → recommendations (screenshot/GIF placeholder).</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Mode 2B detail -->
+    <section id="mode2b">
+      <h2>Mode 2B · Vibe Roulette</h2>
+      <div class="mode-detail-grid">
+        <div>
+          <p>
+            For low-friction moments, Vibe Roulette is a single button. It doesn’t
+            guess genres; it picks a persona like “Flow State Focus” or “Neon City Ride”
+            based on weekday vs weekend and time of day, then spins a playlist in that
+            region of the vibe space.
+          </p>
+          <div class="mode-detail-card">
+            <h3>What the user does</h3>
+            <ul>
+              <li>Chooses how adventurous they feel: predictable, balanced, or chaotic good.</li>
+              <li>Hits “Spin” and gets a persona (“Lazy Brunch Breeze”, “Night Out Pre-Game”, etc.).</li>
+              <li>Listens, skips, or jumps around the queue like a normal player.</li>
+            </ul>
+            <h3>What the system does</h3>
+            <ul>
+              <li>Bucketizes the current datetime into weekday/weekend + morning/afternoon/evening/late night.</li>
+              <li>Selects a persona with a pre-tuned slider profile (calibrated from dataset distributions).</li>
+              <li>Queries the engine for a larger candidate set and samples “now playing” via a temperature-controlled distribution.</li>
+              <li>Uses the rest of the top candidates as the queue, ordered by hybrid score.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="mode-screenshot">
+          <!-- Example: <img src="assets/mode2b_roulette.gif" alt="Vibe Roulette spin result" /> -->
+          <span>Mode 2B: persona selection and spin result (screenshot/GIF placeholder).</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- UNDER THE HOOD -->
+    <section id="under-the-hood">
+      <h2>Under the hood</h2>
+      <p>
+        The project is intentionally simple but opinionated: clear separation of core
+        engine, modes, and UI; and a focus on controllable, interpretable recommendations
+        instead of black-box magic.
+      </p>
+
+      <div class="tech-grid">
+        <div class="tech-card">
+          <h3>Vibe engine</h3>
+          <ul>
+            <li>7D audio feature vectors per track.</li>
+            <li>Standardization with <code>StandardScaler</code> to align tempo and [0,1] features.</li>
+            <li>Per-feature weights (e.g. slightly more weight on energy &amp; valence).</li>
+            <li>Weighted cosine similarity; similarity mapped from [-1,1] to [0,1].</li>
+            <li>Hybrid scoring: λ · vibe_sim + (1−λ) · popularity_norm.</li>
+          </ul>
+        </div>
+        <div class="tech-card">
+          <h3>Ranking &amp; diversity</h3>
+          <ul>
+            <li>Explicit vs non-explicit filtering and optional min popularity filter.</li>
+            <li>Genre filtering (when available) to keep playlists coherent.</li>
+            <li>Greedy diversity-aware re-ranking using cosine similarity in the weighted space.</li>
+            <li>Prevents “10 clones of the same track in a row” while staying on vibe.</li>
+          </ul>
+        </div>
+        <div class="tech-card">
+          <h3>Architecture</h3>
+          <ul>
+            <li><code>VibeEngine</code> – core similarity, scoring, diversity.</li>
+            <li><code>Mode1</code> – sliders → target vector → recommendations.</li>
+            <li><code>Mode2A</code> – seed track → embedding → neighbors.</li>
+            <li><code>Mode2B</code> – context → persona → sliders → exploration.</li>
+            <li>Streamlit app as a thin layer on top with shared “player” controls.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- FUTURE / PRODUCT THINKING -->
+    <section id="future">
+      <h2>If this shipped as a real feature…</h2>
+      <p>
+        I treated this project as a small product surface, not just a notebook experiment.
+        If this lived inside a streaming app, here’s how I’d think about iteration:
+      </p>
+
+      <div class="future-grid">
+        <div class="future-card">
+          <h3>Watch the right metrics</h3>
+          <p>
+            Track time-to-first-satisfying track, early skip rate, and repeat usage
+            per mode to see which entry points actually help people land on a good
+            first song quickly.
+          </p>
+        </div>
+        <div class="future-card">
+          <h3>Compare entry points</h3>
+          <p>
+            Understand how often people come back to sliders vs seed vs roulette, and
+            where they discover new artists vs “comfort” listens. Use that to adjust
+            default surfaces and copy.
+          </p>
+        </div>
+        <div class="future-card">
+          <h3>Feedback loops</h3>
+          <p>
+            Add tiny signals like “more like this” or “less talky” and learn
+            personalized weights over the 7 vibe dimensions for each listener over
+            time.
+          </p>
+        </div>
+        <div class="future-card">
+          <h3>Session-aware reranking</h3>
+          <p>
+            Use within-session behavior (skips, replays) to subtly rerank the queue
+            without breaking the overall persona vibe, and experiment with different
+            levels of exploration.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABOUT -->
+    <section id="about">
+      <h2>About &amp; contact</h2>
+      <div class="about-grid">
+        <div>
+          <p>
+            I’m a data science student who likes building things that live all the way
+            from model to interface. Vibe Recommender started from my frustration with
+            “one-size-fits-all” DJ experiences and grew into a small, controllable
+            recommender you can actually play with.
+          </p>
+          <p>
+            I first explored recommenders in my “Web Mining &amp; Recommender Systems”
+            course, then used this project to deepen that foundation: working with
+            real-world audio features, cosine similarity, ranking, and the product
+            decisions around how people tell the system what they want.
+          </p>
+          <div class="about-links">
+            <a
+              class="btn btn-ghost"
+              href="https://github.com/jessicabat/vibe-recommender"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View the GitHub repo ↗
+            </a>
+          </div>
+        </div>
+        <div>
+          <div class="mode-detail-card">
+            <h3>Links</h3>
+            <ul>
+              <li>
+                GitHub:
+                <a href="https://github.com/jessicabat" target="_blank" rel="noopener noreferrer">
+                  github.com/jessicabat
+                </a>
+              </li>
+              <!-- <li>
+                LinkedIn:
+                <a href="https://www.linkedin.com/in/your-handle" target="_blank" rel="noopener noreferrer">
+                  linkedin.com/in/your-handle
+                </a>
+              </li> -->
+              <li>
+                Project repo:
+                <a href="https://github.com/jessicabat/vibe-recommender" target="_blank" rel="noopener noreferrer">
+                  vibe-recommender on GitHub
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    Vibe Recommender · built with Python, Streamlit and a mildly obsessive love for
+    playlist curation.
+  </footer>
+
+  <script>
+    // Smooth scroll with slight offset for sticky nav
+    document.querySelectorAll('a[href^="#"]').forEach(function(anchor) {
+      anchor.addEventListener("click", function(e) {
+        const targetId = this.getAttribute("href");
+        if (targetId.length > 1) {
+          e.preventDefault();
+          const el = document.querySelector(targetId);
+          if (!el) return;
+          const rect = el.getBoundingClientRect();
+          const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+          const offset = 80; // height of sticky nav
+          const targetY = rect.top + scrollTop - offset;
+          window.scrollTo({ top: targetY, behavior: "smooth" });
+        }
+      });
+    });
+  </script>
+</body>
+</html>
