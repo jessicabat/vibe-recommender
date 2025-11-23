@@ -1,8 +1,4 @@
 .env
-testing/
-src/vibe_recommender.py
-src/vibe_engine_full.py
-src/mode2b_vibe_roulette_full.py
-src/mode1_sliders_full.py
-src/mode2a_seed_from_song_full.py
-src/app_streamlit_test.py
+__pycache__/
+*.pyc
+.streamlit/
