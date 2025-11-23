@@ -1,5 +1,7 @@
+# app_streamlit.py
+
 import datetime
-from typing import Optional, List, Tuple, Callable, Any
+from typing import Optional, Callable, Any
 
 import numpy as np
 import pandas as pd
@@ -7,7 +9,7 @@ import streamlit as st
 
 from vibe_engine import VibeEngine
 from mode2a_seed_from_song import Mode2ASeedFromSong
-from mode2b_vibe_roulette import Mode2BVibeRoulette
+from mode2b_vibe_roulette import Mode2BVibeRoulette, TimeOfDayPersona
 
 
 # =========================
@@ -101,7 +103,7 @@ def render_playlist_with_controls(
       - reads playlist + current_idx from st.session_state for `mode_key`
       - renders Now playing card
       - shows Previous / Skip buttons
-      - shows interactive Up Next with play icons
+      - shows Up Next as mini cards with inline Play buttons
     """
     playlist: Optional[pd.DataFrame] = st.session_state.get(f"{mode_key}_playlist")
     if playlist is None or playlist.empty:
@@ -113,6 +115,7 @@ def render_playlist_with_controls(
 
     now_playing = playlist.iloc[current_idx]
 
+    # Optional explanation hook
     explanation = None
     if explanation_provider is not None:
         try:
@@ -129,7 +132,8 @@ def render_playlist_with_controls(
         explanation=explanation,
     )
 
-    col_prev, col_skip = st.columns(2)
+    # Transport controls
+    col_prev, col_skip = st.columns([1, 1])
     with col_prev:
         disabled_prev = current_idx == 0
         if st.button("⏮ Previous", key=f"{mode_key}_prev", disabled=disabled_prev):
@@ -144,40 +148,61 @@ def render_playlist_with_controls(
                 st.session_state[f"{mode_key}_current_idx"] = current_idx + 1
                 st.rerun()
 
+    # Up Next
     up_next_start = current_idx + 1
+    st.markdown("### 🎵 Up Next")
+
     if up_next_start >= len(playlist):
-        st.subheader("🎵 Up Next")
-        st.write("No more tracks in the queue.")
+        st.caption("Queue is empty. Skip backwards or generate a new playlist.")
         return
 
-    st.subheader("🎵 Up Next")
-
+    # Render each upcoming track as a mini-card with a Play button
     for pos in range(up_next_start, len(playlist)):
         row = playlist.iloc[pos]
-        display_pos = pos + 1  # human-friendly (1-based)
+        display_pos = pos + 1  # human-friendly position
 
-        col_btn, col_text = st.columns([0.1, 0.9])
+        title = row.get("track_name", "Unknown track")
+        artist = row.get("artists", "Unknown artist")
+        genre = row.get("track_genre", None)
+        vibe_sim = row.get("vibe_similarity", None)
 
-        with col_btn:
-            if st.button("▶️", key=f"{mode_key}_play_{pos}"):
+        btn_col, info_col = st.columns([0.18, 0.82])
+
+        with btn_col:
+            if st.button("Play", key=f"{mode_key}_play_{pos}"):
                 st.session_state[f"{mode_key}_current_idx"] = pos
                 st.rerun()
 
-        with col_text:
-            title = row.get("track_name", "Unknown track")
-            artist = row.get("artists", "Unknown artist")
-            genre = row.get("track_genre", None)
-            vibe_sim = row.get("vibe_similarity", None)
-
-            line = f"**#{display_pos} {title}** — {artist}"
-            st.markdown(line)
+        with info_col:
             meta_bits = []
             if genre:
                 meta_bits.append(genre)
             if vibe_sim is not None:
                 meta_bits.append(f"vibe sim {vibe_sim:.2f}")
-            if meta_bits:
-                st.caption(" • ".join(meta_bits))
+
+            meta_text = " • ".join(meta_bits) if meta_bits else ""
+
+            card_html = f"""
+            <div style="
+                border-radius: 12px;
+                padding: 0.55rem 0.8rem;
+                margin-bottom: 0.35rem;
+                border: 1px solid #222;
+                background-color: #0c0c0f;
+            ">
+                <div style="font-size: 0.85rem; color: #888;">#{display_pos}</div>
+                <div style="font-weight: 600; font-size: 0.98rem;">
+                    {title}
+                </div>
+                <div style="font-size: 0.9rem; color: #bbb;">
+                    {artist}
+                </div>
+                <div style="font-size: 0.78rem; color: #888; margin-top: 0.15rem;">
+                    {meta_text}
+                </div>
+            </div>
+            """
+            st.markdown(card_html, unsafe_allow_html=True)
 
 
 # =========================
@@ -313,7 +338,6 @@ def page_mode2a_seed_from_song(mode2a: Mode2ASeedFromSong):
             st.error("No matches found. Try a different spelling or song.")
         # Even if no results, we might still have an existing playlist
         if st.session_state.get("mode2a_playlist") is not None:
-            # show existing playlist / player if any
             def explanation_provider(row: pd.Series) -> Optional[str]:
                 seed_idx = st.session_state.get("mode2a_seed_idx")
                 if seed_idx is None:
@@ -330,7 +354,7 @@ def page_mode2a_seed_from_song(mode2a: Mode2ASeedFromSong):
                 st.markdown("#### Seed track")
                 seed_row = mode2a.df.loc[int(seed_idx)]
                 st.write(seed_row[["track_name", "artists", "track_genre", "track_id"]])
-            render_playlist_with_controls(mode_key="mode2a", explanation_provider=explanation_provider)
+            render_playlist_with_controls("mode2a", explanation_provider=explanation_provider)
         return
 
     st.markdown("#### Search results")
@@ -437,10 +461,11 @@ def page_mode2b_vibe_roulette(mode2b: Mode2BVibeRoulette):
         else:
             time_str = datetime.datetime.now().strftime("%A %I:%M %p")
 
+        # Support both old and new meta formats
         persona = meta.get("persona_name", "Unknown persona")
-        day_type = meta.get("day_type", "")
+        day_type = meta.get("day_type", meta.get("weekday_bucket", ""))
         time_bucket = meta.get("time_bucket", "")
-        sliders = meta.get("persona_sliders", {})
+        sliders = meta.get("persona_sliders", meta.get("sliders_used", {}))
 
         st.markdown("---")
         st.markdown("#### Your vibe spin")
@@ -458,7 +483,7 @@ def page_mode2b_vibe_roulette(mode2b: Mode2BVibeRoulette):
             return mode2b._explain_match(
                 persona=TimeOfDayPersona(
                     name=meta.get("persona_name", ""),
-                    sliders=meta.get("persona_sliders", {}),
+                    sliders=sliders,
                     tagline=meta.get("persona_tagline", ""),
                     emoji=meta.get("persona_emoji", ""),
                     tags=tuple(meta.get("persona_tags", ())),
@@ -482,6 +507,9 @@ def main():
     )
 
     st.title("Vibe Recommender 🎧")
+    if "selected_mode" not in st.session_state:
+        st.session_state["selected_mode"] = None
+
     st.caption(
         "A content-based music recommender that matches you on *vibe* — "
         "not just genre or popularity."
@@ -493,24 +521,63 @@ def main():
         st.error(f"Could not find data file at `{DATA_PATH}`. Please update DATA_PATH.")
         return
 
-    mode = st.sidebar.radio(
-        "Choose how you want to start",
-        options=[
-            "Dial in a vibe 🎚️",
-            "Start from a song 🎵",
-            "Vibe Roulette 🎲",
-        ],
-    )
-
     st.sidebar.markdown("---")
     st.sidebar.markdown("Built with cosine similarity, hybrid scoring, and personas.")
 
-    if mode.startswith("Dial in a vibe"):
+    # ---------- HERO MODE PICKER ----------
+    st.markdown("## Choose how you want to set the vibe")
+    st.markdown(
+        "Pick a starting point below. You can always come back and try another one."
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.markdown("### 🎚️ Dial in a vibe")
+        st.caption(
+            "You know how you want the music to *feel*.\n\n"
+            "Use sliders like energy, tempo, and acousticness to sketch your mood."
+        )
+        if st.button("Use this mode", key="hero_mode1"):
+            st.session_state["selected_mode"] = "mode1"
+            st.rerun()
+
+    with col2:
+        st.markdown("### 🎵 Start from a song")
+        st.caption(
+            "You have one song in mind.\n\n"
+            "Give me a track and I’ll find its closest vibe cousins in the library."
+        )
+        if st.button("Use this mode", key="hero_mode2a"):
+            st.session_state["selected_mode"] = "mode2a"
+            st.rerun()
+
+    with col3:
+        st.markdown("### 🎲 Vibe Roulette")
+        st.caption(
+            "You’re indecisive or just curious.\n\n"
+            "One click, I look at the time of day and spin up a persona-based playlist."
+        )
+        if st.button("Use this mode", key="hero_mode2b"):
+            st.session_state["selected_mode"] = "mode2b"
+            st.rerun()
+
+    st.markdown("---")
+
+    # 🔁 read selected mode after potential reruns
+    selected_mode = st.session_state.get("selected_mode")
+
+    if selected_mode == "mode1":
+        st.markdown("#### Mode: Dial in a vibe")
         page_mode1_sliders(engine)
-    elif mode.startswith("Start from a song"):
+    elif selected_mode == "mode2a":
+        st.markdown("#### Mode: Start from a song")
         page_mode2a_seed_from_song(mode2a)
-    else:
+    elif selected_mode == "mode2b":
+        st.markdown("#### Mode: Vibe Roulette")
         page_mode2b_vibe_roulette(mode2b)
+    else:
+        st.info("Pick a mode above to get started.")
 
 
 if __name__ == "__main__":
