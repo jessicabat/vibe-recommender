@@ -39,19 +39,21 @@ Implemented in `vibe_engine.py`.
 - Apply per-feature weights via elementwise scaling.
 - Use **weighted cosine similarity**:
 
-  \[
-  \text{sim}(x, y) = \frac{(w^{1/2} \odot x) \cdot (w^{1/2} \odot y)}{\|w^{1/2} \odot x\| \, \|w^{1/2} \odot y\|}
-  \]
+$$
+\text{sim}(x, y)
+= \frac{(w^{1/2} \odot x) \cdot (w^{1/2} \odot y)}
+{\lVert w^{1/2} \odot x \rVert \, \lVert w^{1/2} \odot y \rVert}
+$$
 
 - Map similarity from [-1, 1] → [0, 1] so it can be blended with popularity.
 
 ### Scoring
 
-Hybrid ranking:
+- **Hybrid ranking**:
 
-\[
-\text{score} = \lambda \cdot \text{vibe\_sim} + (1 - \lambda)\cdot \text{popularity\_norm}
-\]
+$$
+score = \lambda \cdot vibe_{sim} + (1 - \lambda) \cdot popularity_{norm}
+$$
 
 - `vibe_sim` = weighted cosine similarity with the target vibe.
 - `popularity_norm` = track popularity / 100.
@@ -177,3 +179,4 @@ pip install -r requirements.txt
 #   - columns should include the 7 vibe features, popularity, track_id, artists, track_name, track_genre, explicit
 
 streamlit run src/app_streamlit.py
+# Then open the URL shown in your terminal
