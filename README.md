@@ -49,13 +49,14 @@ $$
 
 ### Scoring
 
-Hybrid ranking:
+- **Hybrid ranking**:
 
 $$
 \text{score}
 = \lambda \cdot \text{vibe\_sim}
 + (1 - \lambda) \cdot \text{popularity\_norm}
 $$
+
 
 - `vibe_sim` = weighted cosine similarity with the target vibe.
 - `popularity_norm` = track popularity / 100.
