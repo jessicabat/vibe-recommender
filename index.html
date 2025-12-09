@@ -640,22 +640,78 @@
       border-radius: 18px;
       border: 1px solid rgba(29, 185, 84, 0.4);
       background: #050509;
-      padding: 0.4rem;
+      padding: 0.6rem;
       min-height: 180px;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       font-size: 0.8rem;
       color: var(--text-muted);
+      gap: 0.4rem;
     }
 
     .mode-screenshot img {
       max-width: 100%;
       border-radius: 14px;
       display: block;
+      cursor: zoom-in;
+    }
+
+    .mode-screenshot video {
+      max-width: 100%;
+      border-radius: 14px;
+      display: block;
+      cursor: zoom-in;
+      background: #000;
+    }
+
+    .mode-screenshot-caption {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      text-align: center;
     }
 
     /* Under the hood */
+
+    #under-the-hood .system-visual-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+      margin-bottom: 1.4rem;
+    }
+
+    @media (max-width: 900px) {
+      #under-the-hood .system-visual-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    #under-the-hood .system-diagram {
+      border-radius: 18px;
+      border: 1px solid rgba(29, 185, 84, 0.5);
+      background: #050509;
+      padding: 0.7rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #under-the-hood .system-diagram img {
+      max-width: 100%;
+      border-radius: 12px;
+      display: block;
+      cursor: zoom-in;
+    }
+
+    #under-the-hood .system-diagram-caption {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
 
     #under-the-hood .tech-grid {
       display: grid;
@@ -702,6 +758,7 @@
       padding: 0.35rem 0.55rem;
       font-size: 0.84rem;
       line-height: 1.5;
+      font-family: "Consolas", "Monaco", monospace;
     }
 
     /* Future cards */
@@ -789,6 +846,51 @@
       max-width: 1120px;
       margin: 0 auto;
     }
+
+    /* Lightbox */
+
+    .lightbox-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.92);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
+
+    .lightbox-overlay.active {
+      display: flex;
+    }
+
+    .lightbox-content {
+      position: relative;
+      max-width: 90vw;
+      max-height: 90vh;
+    }
+
+    .lightbox-content img,
+    .lightbox-content video {
+      max-width: 100%;
+      max-height: 90vh;
+      border-radius: 18px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+      background: #000;
+    }
+
+    .lightbox-close {
+      position: absolute;
+      top: -40px;
+      right: 0;
+      font-size: 0.9rem;
+      color: #f5f5f7;
+      cursor: pointer;
+      opacity: 0.7;
+    }
+
+    .lightbox-close:hover {
+      opacity: 1;
+    }
   </style>
 </head>
 <body>
@@ -801,6 +903,7 @@
       <nav class="nav-links">
         <a href="#why">Why</a>
         <a href="#modes">Modes</a>
+        <a href="#mode1">Mode 1</a>
         <a href="#under-the-hood">Under the hood</a>
         <a href="#future">Next steps</a>
         <a href="#about">About</a>
@@ -808,7 +911,7 @@
       <div class="nav-cta">
         <a
           class="btn btn-ghost"
-          href="https://github.com/jessicabat/vibe-recommender"
+          href="https://github.com/your-username/vibe-recommender"
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -816,7 +919,7 @@
         </a>
         <a
           class="btn btn-primary"
-          href="https://github.com/jessicabat/vibe-recommender"
+          href="https://github.com/your-username/vibe-recommender"
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -830,7 +933,7 @@
     <!-- HERO -->
     <section id="hero">
       <div>
-        <div class="hero-eyebrow">recommender systems</div>
+        <div class="hero-eyebrow">portfolio project • recommender systems</div>
         <h1 class="hero-title">
           Mood-first <span class="hero-highlight">Vibe Recommender</span>
         </h1>
@@ -843,7 +946,7 @@
         <div class="hero-cta-row">
           <a
             class="btn btn-primary"
-            href="https://github.com/jessicabat/vibe-recommender"
+            href="https://github.com/your-username/vibe-recommender"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -1026,8 +1129,19 @@
           </div>
         </div>
         <div class="mode-screenshot">
-          <!-- Example: <img src="assets/mode1_sliders.gif" alt="Screenshot of Mode 1 sliders UI" /> -->
-          <span>Mode 1 UI: sliders + “Now playing” card + queue (screenshot or GIF goes here).</span>
+          <!-- Replace src with your actual Mode 1 demo video or GIF -->
+          <!-- Example: assets/mode1_demo.mp4 -->
+          <video
+            class="zoomable-video"
+            src="assets/mode1_demo.mp4"
+            muted
+            controls
+            playsinline
+          ></video>
+          <div class="mode-screenshot-caption">
+            Mode 1: dialing in a vibe with sliders, then skipping through the queue to feel how diversity behaves.
+            Click to view full screen.
+          </div>
         </div>
       </div>
     </section>
@@ -1059,8 +1173,18 @@
           </div>
         </div>
         <div class="mode-screenshot">
-          <!-- Example: <img src="assets/mode2a_seed.gif" alt="Seed-from-song flow in the app" /> -->
-          <span>Mode 2A: seed search → seed selection → recommendations (screenshot/GIF placeholder).</span>
+          <!-- Replace with actual screenshot or GIF / video -->
+          <!-- Example: assets/mode2a_seed_demo.mp4 -->
+          <video
+            class="zoomable-video"
+            src="assets/mode2a_seed_demo.mp4"
+            muted
+            controls
+            playsinline
+          ></video>
+          <div class="mode-screenshot-caption">
+            Mode 2A: search for a track, choose a seed, then see the vibe-neighbor queue with explanations. Click to view full screen.
+          </div>
         </div>
       </div>
     </section>
@@ -1093,8 +1217,18 @@
           </div>
         </div>
         <div class="mode-screenshot">
-          <!-- Example: <img src="assets/mode2b_roulette.gif" alt="Vibe Roulette spin result" /> -->
-          <span>Mode 2B: persona selection and spin result (screenshot/GIF placeholder).</span>
+          <!-- Replace with actual screenshot or GIF / video -->
+          <!-- Example: assets/mode2b_roulette_demo.mp4 -->
+          <video
+            class="zoomable-video"
+            src="assets/mode2b_roulette_demo.mp4"
+            muted
+            controls
+            playsinline
+          ></video>
+          <div class="mode-screenshot-caption">
+            Mode 2B: a one-click spin that chooses a persona from time-of-day context and samples a “now playing” track. Click to view full screen.
+          </div>
         </div>
       </div>
     </section>
@@ -1107,6 +1241,36 @@
         engine, modes, and UI; and a focus on controllable, interpretable recommendations
         instead of black-box magic.
       </p>
+
+      <!-- Architecture + radar visuals -->
+      <div class="system-visual-grid">
+        <div class="system-diagram">
+          <!-- Replace src with your architecture diagram export -->
+          <img
+            src="assets/vibe_system_arch.png"
+            alt="System architecture diagram from user input to final ranked queue"
+            class="zoomable-image"
+          />
+          <div class="system-diagram-caption">
+            Architecture: user input (sliders / seed / time) → standardization →
+            weighted cosine similarity → hybrid scoring (λ) → diversity re-ranking → final queue.
+          </div>
+        </div>
+
+        <div class="system-diagram">
+          <!-- Radar chart visualization of the vibe space -->
+          <img
+            src="assets/mode1_vibe_radar.png"
+            alt="Radar chart comparing two vibes in the 7D audio feature space"
+            class="zoomable-image"
+          />
+          <div class="system-diagram-caption">
+            Radar chart: comparing two vibes (e.g. morning focus vs party) across danceability,
+            energy, valence, tempo, acousticness, instrumentalness, and speechiness.
+            This is the space cosine similarity operates in.
+          </div>
+        </div>
+      </div>
 
       <div class="tech-grid">
         <div class="tech-card">
@@ -1153,9 +1317,9 @@
         <div class="future-card">
           <h3>Watch the right metrics</h3>
           <p>
-            Track time-to-first-satisfying track, early skip rate, and repeat usage
-            per mode to see which entry points actually help people land on a good
-            first song quickly.
+            Track <strong>Time-to-first-satisfying-track</strong>, <strong>Early Skip Rate</strong>,
+            and repeat usage per mode to see which entry points actually help people
+            land on a good first song quickly.
           </p>
         </div>
         <div class="future-card">
@@ -1197,7 +1361,7 @@
             recommender you can actually play with.
           </p>
           <p>
-            I first explored recommenders in my “Web Mining &amp; Recommender Systems”
+            I first explored recommenders in a “Web Mining &amp; Recommender Systems”
             course, then used this project to deepen that foundation: working with
             real-world audio features, cosine similarity, ranking, and the product
             decisions around how people tell the system what they want.
@@ -1205,7 +1369,7 @@
           <div class="about-links">
             <a
               class="btn btn-ghost"
-              href="https://github.com/jessicabat/vibe-recommender"
+              href="https://github.com/your-username/vibe-recommender"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -1219,19 +1383,19 @@
             <ul>
               <li>
                 GitHub:
-                <a href="https://github.com/jessicabat" target="_blank" rel="noopener noreferrer">
-                  github.com/jessicabat
+                <a href="https://github.com/your-username" target="_blank" rel="noopener noreferrer">
+                  github.com/your-username
                 </a>
               </li>
-              <!-- <li>
+              <li>
                 LinkedIn:
                 <a href="https://www.linkedin.com/in/your-handle" target="_blank" rel="noopener noreferrer">
                   linkedin.com/in/your-handle
                 </a>
-              </li> -->
+              </li>
               <li>
                 Project repo:
-                <a href="https://github.com/jessicabat/vibe-recommender" target="_blank" rel="noopener noreferrer">
+                <a href="https://github.com/your-username/vibe-recommender" target="_blank" rel="noopener noreferrer">
                   vibe-recommender on GitHub
                 </a>
               </li>
@@ -1246,6 +1410,15 @@
     Vibe Recommender · built with Python, Streamlit and a mildly obsessive love for
     playlist curation.
   </footer>
+
+  <!-- Lightbox overlay -->
+  <div class="lightbox-overlay" id="lightbox">
+    <div class="lightbox-content">
+      <div class="lightbox-close">Close ✕</div>
+      <img id="lightbox-img" src="" alt="Expanded media" style="display:none;" />
+      <video id="lightbox-video" src="" controls style="display:none;"></video>
+    </div>
+  </div>
 
   <script>
     // Smooth scroll with slight offset for sticky nav
@@ -1262,6 +1435,62 @@
           const targetY = rect.top + scrollTop - offset;
           window.scrollTo({ top: targetY, behavior: "smooth" });
         }
+      });
+    });
+
+    // Lightbox logic for images and videos
+    document.addEventListener("DOMContentLoaded", function() {
+      const overlay = document.getElementById("lightbox");
+      const imgEl = document.getElementById("lightbox-img");
+      const videoEl = document.getElementById("lightbox-video");
+      const closeBtn = overlay.querySelector(".lightbox-close");
+
+      function openImage(src) {
+        videoEl.pause();
+        videoEl.style.display = "none";
+        videoEl.removeAttribute("src");
+
+        imgEl.src = src;
+        imgEl.style.display = "block";
+        overlay.classList.add("active");
+      }
+
+      function openVideo(src) {
+        imgEl.style.display = "none";
+        imgEl.removeAttribute("src");
+
+        videoEl.src = src;
+        videoEl.style.display = "block";
+        overlay.classList.add("active");
+      }
+
+      document.querySelectorAll(".zoomable-image").forEach(function(el) {
+        el.addEventListener("click", function() {
+          const src = el.getAttribute("src");
+          if (src) openImage(src);
+        });
+      });
+
+      document.querySelectorAll(".zoomable-video").forEach(function(el) {
+        el.addEventListener("click", function() {
+          const src = el.getAttribute("src");
+          if (src) openVideo(src);
+        });
+      });
+
+      function closeLightbox() {
+        overlay.classList.remove("active");
+        videoEl.pause();
+      }
+
+      overlay.addEventListener("click", function(e) {
+        if (e.target === overlay) {
+          closeLightbox();
+        }
+      });
+
+      closeBtn.addEventListener("click", function() {
+        closeLightbox();
       });
     });
   </script>
