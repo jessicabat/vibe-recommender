@@ -10,6 +10,17 @@ The system lives in a 7D audio feature space and supports three interaction mode
 
 ---
 
+## 🔴 Live demo
+
+You can try the Vibe Recommender in your browser here:
+
+➡️ **Live app:** https://url  
+➡️ **Project website (story + visuals):** https://jessicabat.github.io/vibe-recommender/
+
+If you prefer running it locally, please scroll down to the Running locally section for instructions.
+
+---
+
 ## 📦 Data & Features
 
 - Source: Spotify-style audio features from a ~114k track dataset (Kaggle).

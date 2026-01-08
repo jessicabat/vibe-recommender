@@ -1,16 +1,17 @@
 import datetime
-from typing import Optional, Callable
-
+from typing import Optional, Callable, Any
+from textwrap import dedent
 import numpy as np
 import pandas as pd
 import streamlit as st
 
-from vibe_engine_full import VibeEngine
-from mode2a_seed_from_song_full import Mode2ASeedFromSong
-from mode2b_vibe_roulette_full import Mode2BVibeRoulette, TimeOfDayPersona
+from vibe_engine import VibeEngine
+from mode2a_seed_from_song import Mode2ASeedFromSong
+from mode2b_vibe_roulette import Mode2BVibeRoulette, TimeOfDayPersona
 
 
 DATA_PATH = "data/spotify_tracks.csv"
+
 
 @st.cache_data
 def load_tracks(path: str) -> pd.DataFrame:
@@ -26,8 +27,6 @@ def load_engine_and_modes(path: str):
     mode2b = Mode2BVibeRoulette(engine)
     return engine, mode2a, mode2b
 
-
-# UI HELPERS
 
 def render_spotify_embed(track_id: Optional[str]) -> None:
     """Render a Spotify player if track_id is present."""
@@ -52,7 +51,6 @@ def render_now_playing_card(
     title: str = "Now playing",
     explanation: Optional[str] = None,
 ) -> None:
-    """Nice little card for the top track."""
     track_name = row.get("track_name", "Unknown track")
     artist = row.get("artists", "Unknown artist")
     genre = row.get("track_genre", None)
@@ -86,21 +84,13 @@ def render_now_playing_card(
     if explanation:
         st.markdown("")
         st.info(explanation)
-
+    
     st.markdown("</div>", unsafe_allow_html=True)
-
 
 def render_playlist_with_controls(
     mode_key: str,
     explanation_provider: Optional[Callable[[pd.Series], Optional[str]]] = None,
 ) -> None:
-    """
-    Shared player UI:
-      - reads playlist + current_idx from st.session_state for `mode_key`
-      - renders Now playing card
-      - Previous / Skip buttons
-      - Up Next as mini cards with inline "Jump here" buttons
-    """
     playlist: Optional[pd.DataFrame] = st.session_state.get(f"{mode_key}_playlist")
     if playlist is None or playlist.empty:
         return
@@ -127,23 +117,21 @@ def render_playlist_with_controls(
         explanation=explanation,
     )
 
-    # Transport controls
     col_prev, col_skip = st.columns([1, 1])
     with col_prev:
         disabled_prev = current_idx == 0
-        if st.button("⏮ Previous", key=f"{mode_key}_prev", disabled=disabled_prev):
+        if st.button("⏮ Previous", key=f"{mode_key}_prev", disabled=disabled_prev, use_container_width=True):
             if current_idx > 0:
                 st.session_state[f"{mode_key}_current_idx"] = current_idx - 1
                 st.rerun()
 
     with col_skip:
         disabled_skip = current_idx >= len(playlist) - 1
-        if st.button("⏭ Skip", key=f"{mode_key}_skip", disabled=disabled_skip):
+        if st.button("⏭ Skip", key=f"{mode_key}_skip", disabled=disabled_skip, use_container_width=True):
             if current_idx < len(playlist) - 1:
                 st.session_state[f"{mode_key}_current_idx"] = current_idx + 1
                 st.rerun()
 
-    # Up Next
     up_next_start = current_idx + 1
     st.markdown("### 🎵 Up Next")
 
@@ -168,7 +156,6 @@ def render_playlist_with_controls(
                 meta_bits.append(genre)
             if vibe_sim is not None:
                 meta_bits.append(f"vibe sim {vibe_sim:.2f}")
-
             meta_text = " • ".join(meta_bits) if meta_bits else ""
 
             card_html = f"""
@@ -186,8 +173,6 @@ def render_playlist_with_controls(
                 st.session_state[f"{mode_key}_current_idx"] = pos
                 st.rerun()
 
-
-# MODE 1: SLIDERS
 
 def page_mode1_sliders(engine: VibeEngine):
     st.markdown("### Dial in a vibe 🎚️")
@@ -286,13 +271,11 @@ def page_mode1_sliders(engine: VibeEngine):
     render_playlist_with_controls(mode_key="mode1")
 
 
-# MODE 2A: SEED FROM SONG
-
 def page_mode2a_seed_from_song(mode2a: Mode2ASeedFromSong):
     st.markdown("### Start from a song 🎵")
     st.write(
-        "Tell me a song you like. I’ll search inside the library, "
-        "you pick one, and I’ll build a vibe-matching playlist from it."
+        "Tell me a song you like. I’ll search inside the library. "
+        "You pick one, and I’ll build a vibe-matching playlist from it."
     )
 
     if "mode2a_results" not in st.session_state:
@@ -305,10 +288,11 @@ def page_mode2a_seed_from_song(mode2a: Mode2ASeedFromSong):
             "Type a song or artist name",
             value="",
             placeholder="Feel Good Inc",
+            help="Start typing any song or artist from the library.",
         )
-        submitted_search = st.form_submit_button("🔍 Search library")
+        search_submitted = st.form_submit_button("🔍 Search library")
 
-    if submitted_search:
+    if search_submitted:
         if not query.strip():
             st.warning("Please enter a song or artist name.")
         else:
@@ -318,7 +302,7 @@ def page_mode2a_seed_from_song(mode2a: Mode2ASeedFromSong):
     results = st.session_state["mode2a_results"]
 
     if results is None or results.empty:
-        if submitted_search and query and results is not None and results.empty:
+        if results is not None and results.empty:
             st.error("No matches found. Try a different spelling or song.")
         if st.session_state.get("mode2a_playlist") is not None:
             def explanation_provider(row: pd.Series) -> Optional[str]:
@@ -337,7 +321,6 @@ def page_mode2a_seed_from_song(mode2a: Mode2ASeedFromSong):
                 st.markdown("#### Seed track")
                 seed_row = mode2a.df.loc[int(seed_idx)]
                 st.write(seed_row[["track_name", "artists", "track_genre", "track_id"]])
-
             render_playlist_with_controls("mode2a", explanation_provider=explanation_provider)
         return
 
@@ -394,8 +377,6 @@ def page_mode2a_seed_from_song(mode2a: Mode2ASeedFromSong):
 
         render_playlist_with_controls("mode2a", explanation_provider=explanation_provider)
 
-
-# MODE 2B: VIBE ROULETTE
 
 def page_mode2b_vibe_roulette(mode2b: Mode2BVibeRoulette):
     st.markdown("### Vibe Roulette 🎲")
@@ -474,8 +455,6 @@ def page_mode2b_vibe_roulette(mode2b: Mode2BVibeRoulette):
 
         render_playlist_with_controls("mode2b", explanation_provider=explanation_provider)
 
-
-# MAIN APP
 
 def main():
     st.set_page_config(
@@ -582,13 +561,116 @@ def main():
             filter: brightness(1.08);
             box-shadow: 0 8px 18px rgba(0,0,0,0.5);
         }
+        .vibe-link-row {
+            display: flex;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+            margin: 0.25rem 0 0.75rem;
+        }
+        a.vibe-link-btn {
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.52rem 0.95rem;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.14);
+            color: #eaeaf5;
+            font-weight: 650;
+            letter-spacing: 0.2px;
+        }
+        a.vibe-link-btn:hover {
+            background: rgba(255,255,255,0.11);
+            border-color: rgba(66,255,158,0.35);
+            box-shadow: 0 8px 18px rgba(0,0,0,0.5);
+        }
+        .vibe-link-sub {
+            color: #bdbdd3;
+            font-size: 0.9rem;
+            margin-top: 0.2rem;
+        }
+
+        /* "How to use" -> Quick start card */
+        .vibe-help-card {
+            border-radius: 18px;
+            padding: 1rem 1.1rem;
+            border: 1px solid rgba(255,255,255,0.10);
+            background: linear-gradient(145deg, rgba(18,18,28,0.92), rgba(10,10,16,0.92));
+            box-shadow: 0 10px 26px rgba(0,0,0,0.55);
+            margin: 0.25rem 0 1.0rem;
+        }
+        .vibe-help-title {
+            font-weight: 750;
+            font-size: 1.05rem;
+            margin-bottom: 0.15rem;
+        }
+        .vibe-help-caption {
+            color: #c3c3d7;
+            font-size: 0.92rem;
+            margin-bottom: 0.75rem;
+        }
+        .help-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.8rem;
+        }
+        .help-step {
+            padding: 0.75rem 0.85rem;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.04);
+        }
+        .help-step-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 750;
+            margin-bottom: 0.2rem;
+        }
+        .help-badge {
+            width: 1.55rem;
+            height: 1.55rem;
+            border-radius: 999px;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.85rem;
+            background: rgba(66,255,158,0.14);
+            border: 1px solid rgba(66,255,158,0.22);
+            color: #dfffe9;
+        }
+        .help-step-body {
+            color: #c3c3d7;
+            font-size: 0.92rem;
+            line-height: 1.25rem;
+        }
+        @media (max-width: 900px) {
+            .help-grid { grid-template-columns: 1fr; }
+        }
+        .vibe-link-col {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            align-items: flex-end;
+            justify-content: flex-start;
+            margin-top: 0.25rem;
+        }
+        a.vibe-link-btn {
+            min-width: 210px;
+            justify-content: center;
+        }
+
+        html, body {
+            font-size: 18px; /* increase base size */
+        }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
-    header_logo_col, header_text_col = st.columns([1, 5])
-
+    # Header with logo + title
+    header_logo_col, header_text_col, header_links_col = st.columns([1, 5, 2])
     with header_logo_col:
         st.write("")
         st.write("")
@@ -601,15 +683,71 @@ def main():
             "not just genre or popularity."
         )
         st.caption("Under the hood: cosine similarity, hybrid scoring, and time-of-day personas.")
+        st.caption(
+            "Built with Python, Streamlit, and a 7D audio feature space "
+            "(danceability, energy, valence, tempo, acousticness, instrumentalness, speechiness)."
+        )
 
-    if "selected_mode" not in st.session_state:
-        st.session_state["selected_mode"] = None
+    with header_links_col:
+        st.markdown(
+            dedent("""
+            <div class="vibe-link-col">
+            <a class="vibe-link-btn" href="https://jessicabat.github.io/vibe-recommender/" target="_blank" rel="noopener noreferrer">
+                🌐 Project website <span style="opacity:0.75;">↗</span>
+            </a>
+            <a class="vibe-link-btn" href="https://github.com/jessicabat/vibe-recommender" target="_blank" rel="noopener noreferrer">
+                💻 GitHub repo <span style="opacity:0.75;">↗</span>
+            </a>
+            </div>
+            """),
+            unsafe_allow_html=True,
+        )
 
+
+    st.markdown("---")
+
+    # Load engine + modes (with a nice error if data is missing)
     try:
         engine, mode2a, mode2b = load_engine_and_modes(DATA_PATH)
     except FileNotFoundError:
         st.error(f"Could not find data file at `{DATA_PATH}`. Please update DATA_PATH.")
         return
+
+    st.markdown(
+        dedent("""
+        <div class="vibe-help-card">
+        <div class="vibe-help-title">Quick start</div>
+        <div class="vibe-help-caption">
+            Pick a starting point, generate a playlist, then explore by skipping around.
+            This demo is built to feel simple on the surface — with smart ranking underneath.
+        </div>
+
+        <div class="help-grid">
+            <div class="help-step">
+            <div class="help-step-kicker"><span class="help-badge">1</span>Choose a mode</div>
+            <div class="help-step-body">
+                <b>Sliders</b> if you know the mood,
+                <b>Start from a song</b> if you have an anchor track,
+                or <b>Roulette</b> if you want a one-click surprise.</div></div>
+            <div class="help-step">
+            <div class="help-step-kicker"><span class="help-badge">2</span>Generate recommendations</div>
+            <div class="help-step-body">
+                You’ll get a ranked queue designed to balance
+                “matches the vibe” with “doesn’t feel repetitive.”</div></div>
+            <div class="help-step">
+            <div class="help-step-kicker"><span class="help-badge">3</span>Explore & refine</div>
+            <div class="help-step-body">
+                Try a different vibe, tweak one slider, or switch modes —
+                the point is to feel how the system responds.</div></div></div>
+        </div>
+        """),
+        unsafe_allow_html=True,
+    )
+
+
+
+    if "selected_mode" not in st.session_state:
+        st.session_state["selected_mode"] = None
 
     st.markdown("## Choose how you want to set the vibe")
     st.markdown(
@@ -641,8 +779,7 @@ def main():
             unsafe_allow_html=True,
         )
         st.markdown("<div style='height: 0.5rem;'></div>", unsafe_allow_html=True)
-
-        if st.button("🎚️ Start with sliders", key="hero_mode1"):
+        if st.button("🎚️ Start with sliders", key="hero_mode1", use_container_width=True):
             st.session_state["selected_mode"] = "mode1"
             st.rerun()
 
@@ -669,7 +806,7 @@ def main():
             unsafe_allow_html=True,
         )
         st.markdown("<div style='height: 0.5rem;'></div>", unsafe_allow_html=True)
-        if st.button("🎵 Build from this song", key="hero_mode2a"):
+        if st.button("🎵 Build from a song", key="hero_mode2a", use_container_width=True):
             st.session_state["selected_mode"] = "mode2a"
             st.rerun()
 
@@ -696,7 +833,7 @@ def main():
             unsafe_allow_html=True,
         )
         st.markdown("<div style='height: 0.5rem;'></div>", unsafe_allow_html=True)
-        if st.button("🎲 Spin this vibe", key="hero_mode2b"):
+        if st.button("🎲 Spin the roulette", key="hero_mode2b", use_container_width=True):
             st.session_state["selected_mode"] = "mode2b"
             st.rerun()
 
