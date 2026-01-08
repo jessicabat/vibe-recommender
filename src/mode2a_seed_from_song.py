@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Optional, Tuple, List
 import numpy as np
 import pandas as pd
-from vibe_engine_full import VibeEngine
+from vibe_engine import VibeEngine
 
 
 class Mode2ASeedFromSong:
