@@ -2,7 +2,6 @@ from __future__ import annotations
 from typing import Optional, Tuple, List
 import numpy as np
 import pandas as pd
-from IPython.display import HTML, display
 from vibe_engine_full import VibeEngine
 
 
@@ -191,13 +190,7 @@ class Mode2ASeedFromSong:
             print(f"▶ Open in Spotify: {url}")
 
             if show_spotify_embed:
-                display(HTML(f"""
-                <iframe style="border-radius:12px" 
-                        src="https://open.spotify.com/embed/track/{track_id}?utm_source=generator"
-                        width="100%" height="80" frameborder="0" allowfullscreen=""
-                        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture">
-                </iframe>
-                """))
+                print("(Open the URL above to play this track.)")
 
         if show_explanation and seed_idx is not None:
             try:
@@ -222,6 +215,6 @@ class Mode2ASeedFromSong:
             if not cols:
                 cols = up_next.columns.tolist()
 
-            display(up_next[cols])
+            print("(Open the URL above to play this track.)")
         else:
             print("\n(No additional tracks in queue.)")
