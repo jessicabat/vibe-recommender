@@ -758,6 +758,8 @@ def main():
 
         import inspect
         st.write("Mode2B.spin signature:", inspect.signature(mode2b.spin))
+        st.write("Mode2BVibeRoulette.spin signature:", inspect.signature(Mode2BVibeRoulette.spin))
+        st.write("Mode2B module file:", mode2b_vibe_roulette.__file__)
 
     except FileNotFoundError:
         st.error(f"Could not find data file at `{DATA_PATH}`. Please update DATA_PATH.")
