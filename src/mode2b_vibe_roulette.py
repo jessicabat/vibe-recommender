@@ -382,6 +382,7 @@ class Mode2BVibeRoulette:
         diversity_threshold: float = 0.9,
         explore_k: int = 20,
         temperature: float = 0.7,
+        dt: Optional[datetime] = None,
     ) -> Tuple[pd.Series, pd.DataFrame, Dict[str, Any]]:
         """
         Perform one Vibe Roulette spin.
@@ -389,7 +390,12 @@ class Mode2BVibeRoulette:
         if top_k < 1:
             raise ValueError("top_k must be >= 1")
 
-        dt = datetime.now()
+        # dt = datetime.now()
+        # day_type = _get_day_type(dt)
+        # time_bucket = _get_time_bucket(dt)
+        if dt is None:
+            dt = datetime.now()
+
         day_type = _get_day_type(dt)
         time_bucket = _get_time_bucket(dt)
 

@@ -8,6 +8,8 @@ import streamlit as st
 from vibe_engine import VibeEngine
 from mode2a_seed_from_song import Mode2ASeedFromSong
 from mode2b_vibe_roulette import Mode2BVibeRoulette, TimeOfDayPersona
+from datetime import datetime, timezone, timedelta
+from streamlit_javascript import st_javascript
 
 
 DATA_PATH = "data/spotify_tracks.csv"
@@ -409,6 +411,7 @@ def page_mode2b_vibe_roulette(mode2b: Mode2BVibeRoulette):
                 hide_explicit=True,
                 explore_k=explore_k,
                 temperature=temperature,
+                dt=st.session_state.get("local_dt"),
             )
 
         playlist = pd.concat([now_playing.to_frame().T, up_next])
@@ -455,6 +458,22 @@ def page_mode2b_vibe_roulette(mode2b: Mode2BVibeRoulette):
 
         render_playlist_with_controls("mode2b", explanation_provider=explanation_provider)
 
+def get_client_local_datetime() -> datetime:
+    # get user's local timezone offset in minutes via JavaScript
+    # getTimezoneOffset() returns minutes between local time and UTC: UTC - local.
+    offset_minutes = st_javascript("return new Date().getTimezoneOffset();")
+    utc_now = datetime.now(timezone.utc)
+
+    if offset_minutes is None:
+        return utc_now
+
+    try:
+        offset = timedelta(minutes=int(offset_minutes))
+        local_dt = utc_now - offset
+        return local_dt
+    except Exception:
+        return utc_now
+
 
 def main():
     st.set_page_config(
@@ -462,6 +481,11 @@ def main():
         page_icon="🎶",
         layout="wide",
     )
+
+    if "local_dt" not in st.session_state:
+        st.session_state["local_dt"] = get_client_local_datetime()
+
+    local_dt = st.session_state["local_dt"]
 
     st.markdown(
         """
