@@ -9,8 +9,12 @@ from vibe_engine import VibeEngine
 from mode2a_seed_from_song import Mode2ASeedFromSong
 from mode2b_vibe_roulette import Mode2BVibeRoulette, TimeOfDayPersona
 from datetime import datetime, timezone, timedelta
-from streamlit_javascript import st_javascript
-
+# from streamlit_javascript import st_javascript
+try:
+    from streamlit_javascript import st_javascript
+    HAS_JS = True
+except ImportError:
+    HAS_JS = False
 
 DATA_PATH = "data/spotify_tracks.csv"
 
@@ -464,6 +468,9 @@ def get_client_local_datetime() -> datetime:
     offset_minutes = st_javascript("return new Date().getTimezoneOffset();")
     utc_now = datetime.now(timezone.utc)
 
+    if not HAS_JS:
+        return utc_now
+    
     if offset_minutes is None:
         return utc_now
 
