@@ -504,10 +504,10 @@ def main():
         layout="wide",
     )
 
-    if "local_dt" not in st.session_state:
-        st.session_state["local_dt"] = get_client_local_datetime()
+    # if "local_dt" not in st.session_state:
+    #     st.session_state["local_dt"] = get_client_local_datetime()
 
-    local_dt = st.session_state["local_dt"]
+    # local_dt = st.session_state["local_dt"]
 
     st.markdown(
         """
