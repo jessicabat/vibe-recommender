@@ -755,6 +755,10 @@ def main():
     # Load engine + modes (with a nice error if data is missing)
     try:
         engine, mode2a, mode2b = load_engine_and_modes(DATA_PATH)
+
+        import inspect
+        st.write("Mode2B.spin signature:", inspect.signature(mode2b.spin))
+
     except FileNotFoundError:
         st.error(f"Could not find data file at `{DATA_PATH}`. Please update DATA_PATH.")
         return
