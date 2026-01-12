@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Optional, Any
 import random
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 import numpy as np
 import pandas as pd
@@ -382,7 +382,7 @@ class Mode2BVibeRoulette:
         diversity_threshold: float = 0.9,
         explore_k: int = 20,
         temperature: float = 0.7,
-        dt: Optional[datetime] = None,
+        client_tz_offset_min: Optional[int] = None,
     ) -> Tuple[pd.Series, pd.DataFrame, Dict[str, Any]]:
         """
         Perform one Vibe Roulette spin.
@@ -393,8 +393,13 @@ class Mode2BVibeRoulette:
         # dt = datetime.now()
         # day_type = _get_day_type(dt)
         # time_bucket = _get_time_bucket(dt)
-        if dt is None:
-            dt = datetime.now()
+        now_utc = datetime.now(timezone.utc)
+
+        if isinstance(client_tz_offset_min, (int, float)):
+            dt = now_utc - timedelta(minutes=int(client_tz_offset_min))
+        else:
+            # Fallback: behave like before (UTC)
+            dt = now_utc
 
         day_type = _get_day_type(dt)
         time_bucket = _get_time_bucket(dt)

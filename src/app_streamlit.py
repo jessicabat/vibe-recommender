@@ -9,12 +9,13 @@ from vibe_engine import VibeEngine
 from mode2a_seed_from_song import Mode2ASeedFromSong
 from mode2b_vibe_roulette import Mode2BVibeRoulette, TimeOfDayPersona
 from datetime import datetime, timezone, timedelta
-# from streamlit_javascript import st_javascript
-try:
-    from streamlit_javascript import st_javascript
-    HAS_JS = True
-except ImportError:
-    HAS_JS = False
+from streamlit_javascript import st_javascript
+
+# try:
+#     from streamlit_javascript import st_javascript
+#     HAS_JS = True
+# except ImportError:
+#     HAS_JS = False
 
 DATA_PATH = "data/spotify_tracks.csv"
 
@@ -179,6 +180,15 @@ def render_playlist_with_controls(
                 st.session_state[f"{mode_key}_current_idx"] = pos
                 st.rerun()
 
+def get_client_timezone_offset_minutes() -> Optional[int]:
+    # get user's local timezone offset in minutes via JavaScript
+    try:
+        offset = st_javascript("new Date().getTimezoneOffset();")
+        if isinstance(offset, (int, float)):
+            return int(offset)
+    except Exception:
+        pass
+    return None
 
 def page_mode1_sliders(engine: VibeEngine):
     st.markdown("### Dial in a vibe 🎚️")
@@ -408,6 +418,8 @@ def page_mode2b_vibe_roulette(mode2b: Mode2BVibeRoulette):
         explore_k = 30
         temperature = 1.2
 
+    client_offset_min = get_client_timezone_offset_minutes()
+
     if st.button("🎰 Spin the Vibe Roulette"):
         with st.spinner("Spinning up your vibe..."):
             now_playing, up_next, meta = mode2b.spin(
@@ -415,7 +427,7 @@ def page_mode2b_vibe_roulette(mode2b: Mode2BVibeRoulette):
                 hide_explicit=True,
                 explore_k=explore_k,
                 temperature=temperature,
-                dt=st.session_state.get("local_dt"),
+                client_tz_offset_min=client_offset_min,
             )
 
         playlist = pd.concat([now_playing.to_frame().T, up_next])
@@ -464,24 +476,25 @@ def page_mode2b_vibe_roulette(mode2b: Mode2BVibeRoulette):
 
         render_playlist_with_controls("mode2b", explanation_provider=explanation_provider)
 
-def get_client_local_datetime() -> datetime:
-    # get user's local timezone offset in minutes via JavaScript
-    # getTimezoneOffset() returns minutes between local time and UTC: UTC - local.
-    offset_minutes = st_javascript("return new Date().getTimezoneOffset();")
-    utc_now = datetime.now(timezone.utc)
+# def get_client_local_datetime() -> datetime:
+#     # get user's local timezone offset in minutes via JavaScript
+#     # getTimezoneOffset() returns minutes between local time and UTC: UTC - local.
+#     offset_minutes = st_javascript("return new Date().getTimezoneOffset();")
+#     utc_now = datetime.now(timezone.utc)
 
-    if not HAS_JS:
-        return utc_now
+#     if not HAS_JS:
+#         return utc_now
     
-    if offset_minutes is None:
-        return utc_now
+#     if offset_minutes is None:
+#         return utc_now
 
-    try:
-        offset = timedelta(minutes=int(offset_minutes))
-        local_dt = utc_now - offset
-        return local_dt
-    except Exception:
-        return utc_now
+#     try:
+#         offset = timedelta(minutes=int(offset_minutes))
+#         local_dt = utc_now - offset
+#         return local_dt
+#     except Exception:
+#         return utc_now
+
 
 
 def main():
