@@ -27,7 +27,7 @@
       <nav class="nav-links">
         <a href="#why">Why</a>
         <a href="#modes">Modes</a>
-        <!-- <a href="#mode1">Mode 1</a> -->
+
         <a href="#under-the-hood">Under the hood</a>
         <a href="#future">Next steps</a>
         <a href="#about">About</a>
@@ -43,11 +43,11 @@
         </a>
         <a
           class="btn btn-primary"
-          href="https://github.com/jessicabat/vibe-recommender"
+          href="https://vibe-recommender.streamlit.app/"
           target="_blank"
           rel="noopener noreferrer"
         >
-          <span>Run locally (see README)</span>
+          <span>Run Live App </span>
         </a>
       </div>
     </div>
@@ -72,11 +72,11 @@
         <div class="hero-cta-row">
           <a
             class="btn btn-primary"
-            href="https://github.com/jessicabat/vibe-recommender"
+            href="https://vibe-recommender.streamlit.app/"
             target="_blank"
             rel="noopener noreferrer"
           >
-            <span>Open GitHub repo</span> <span>↗</span>
+            <span>Open Live Demo</span> <span>↗</span>
           </a>
           <a class="btn btn-ghost" href="#under-the-hood">
             <span>See how it works</span>
@@ -560,6 +560,14 @@
           <div class="about-links">
             <a
               class="btn btn-ghost"
+              href="https://vibe-recommender.streamlit.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View the Live DEMO ↗
+            </a>
+            <a
+              class="btn btn-ghost"
               href="https://github.com/jessicabat/vibe-recommender"
               target="_blank"
               rel="noopener noreferrer"
@@ -584,6 +592,9 @@
                 </a>
                 <a class="contact-link-pill" href="https://github.com/jessicabat/vibe-recommender" target="_blank" rel="noopener noreferrer">
                   Project repo
+                </a>
+                <a class="contact-link-pill" href="https://vibe-recommender.streamlit.app/" target="_blank" rel="noopener noreferrer">
+                  Live demo
                 </a>
             </div>
           </div>
@@ -674,6 +685,44 @@
 
       closeBtn.addEventListener("click", function() {
         closeLightbox();
+      });
+
+      // 1. Select all sections that have an ID defined
+      const sections = document.querySelectorAll("section[id]");
+      
+      // 2. Observer options
+      // rootMargin: "-30% 0px -70% 0px" is a trick!
+      // It effectively draws a line 30% down from the top.
+      // Whichever section crosses that line is considered "active".
+      const observerOptions = {
+        root: null,
+        rootMargin: "-30% 0px -70% 0px", 
+        threshold: 0
+      };
+
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            
+            // A. Remove 'active' class from all links
+            document.querySelectorAll('.nav-links a').forEach((link) => {
+              link.classList.remove('active');
+            });
+
+            // B. Add 'active' class to the matching link
+            const id = entry.target.getAttribute("id");
+            const newActiveLink = document.querySelector(`.nav-links a[href="#${id}"]`);
+            
+            if (newActiveLink) {
+              newActiveLink.classList.add('active');
+            }
+          }
+        });
+      }, observerOptions);
+
+      // 3. Track all sections
+      sections.forEach((section) => {
+        observer.observe(section);
       });
     });
   </script>

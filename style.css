@@ -968,3 +968,19 @@
     color: var(--text-muted);
     white-space: nowrap;
     }
+
+    /* Normal link style */
+    .nav-links a {
+      color: #ffffff;
+      text-decoration: none;
+      opacity: 0.7;
+      transition: 0.3s;
+    }
+
+    /* The style applied to the active link */
+    .nav-links a.active {
+      color: #1db954;
+      font-weight: bold;
+      opacity: 1;
+      border-bottom: 2px solid #1db954;
+    }
