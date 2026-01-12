@@ -27,7 +27,7 @@ def load_tracks(path: str) -> pd.DataFrame:
 
 
 @st.cache_resource
-def load_engine_and_modes(path: str):
+def load_engine_and_modes(path: str, cache_version: int = 2):
     df = load_tracks(path)
     engine = VibeEngine(df)
     mode2a = Mode2ASeedFromSong(engine)
@@ -754,7 +754,7 @@ def main():
 
     # Load engine + modes (with a nice error if data is missing)
     try:
-        engine, mode2a, mode2b = load_engine_and_modes(DATA_PATH)
+        engine, mode2a, mode2b = load_engine_and_modes(DATA_PATH, cache_version=2)
 
     except FileNotFoundError:
         st.error(f"Could not find data file at `{DATA_PATH}`. Please update DATA_PATH.")
