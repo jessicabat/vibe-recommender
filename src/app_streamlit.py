@@ -1,4 +1,4 @@
-import datetime
+# import datetime
 from typing import Optional, Callable, Any
 from textwrap import dedent
 import numpy as np
@@ -423,26 +423,28 @@ def page_mode2b_vibe_roulette(mode2b: Mode2BVibeRoulette):
         st.session_state["mode2b_current_idx"] = 0
         st.session_state["mode2b_meta"] = meta
 
-    meta = st.session_state.get("mode2b_meta")
-    if meta is not None and st.session_state.get("mode2b_playlist") is not None:
-        dt = meta.get("timestamp")
-        if isinstance(dt, datetime.datetime):
-            time_str = dt.strftime("%A %I:%M %p")
-        else:
-            time_str = datetime.datetime.now().strftime("%A %I:%M %p")
+        meta = st.session_state.get("mode2b_meta")
+        if meta is not None and st.session_state.get("mode2b_playlist") is not None:
+            dt = meta.get("timestamp")
 
-        persona = meta.get("persona_name", "Unknown persona")
-        day_type = meta.get("day_type", meta.get("weekday_bucket", ""))
-        time_bucket = meta.get("time_bucket", "")
-        sliders = meta.get("persona_sliders", meta.get("sliders_used", {}))
+            if isinstance(dt, datetime):
+                time_str = dt.strftime("%A %I:%M %p")
+            else:
+                time_str = datetime.now().strftime("%A %I:%M %p")
 
-        st.markdown("---")
-        st.markdown("#### Your vibe spin")
-        st.markdown(
-            f"🕒 It’s **{time_str}** — "
-            f"I’m sensing a **{persona}** mood "
-            f"({day_type}, {time_bucket.replace('_', ' ')})."
-        )
+            persona = meta.get("persona_name", "Unknown persona")
+            day_type = meta.get("day_type", meta.get("weekday_bucket", ""))
+            time_bucket = meta.get("time_bucket", "")
+            sliders = meta.get("persona_sliders", meta.get("sliders_used", {}))
+
+            st.markdown("---")
+            st.markdown("#### Your vibe spin")
+            st.markdown(
+                f"🕒 It’s **{time_str}** — "
+                f"I’m sensing a **{persona}** mood "
+                f"({day_type}, {time_bucket.replace('_', ' ')})."
+            )
+
 
         with st.expander("See the persona vibe profile I used"):
             st.json(sliders)
